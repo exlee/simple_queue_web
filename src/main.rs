@@ -23,8 +23,11 @@ async fn main() {
         )
         .init();
 
-    let database_url =
-        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let args: Vec<String> = std::env::args().collect();
+    let database_url = args
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| std::env::var("DATABASE_URL").expect("DATABASE_URL must be set or passed as first argument"));
 
     let pool = db::establish_pool(&database_url);
     let state = AppState { pool };
