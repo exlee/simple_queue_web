@@ -25,10 +25,16 @@
                 <a href="/queues/browse" class="text-sm text-gray-400 hover:text-white transition-colors">Queues</a>
             </div>
             <div class="flex items-center gap-4">
+                <form id="job-search" class="flex items-center gap-1" onsubmit="document.getElementById('job-search-input').blur()">
+                    <input type="text" id="job-search-input" placeholder="Job ID"
+                           class="bg-gray-800 border border-gray-700 text-white text-xs rounded px-2 py-1 w-36 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-500">
+                </form>
                 <label class="flex items-center gap-2 text-sm text-gray-400">
                     Poll:
                     <select id="poll-interval"
                             class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="200">0.2s</option>
+                        <option value="500">0.5s</option>
                         <option value="1000">1s</option>
                         <option value="2000" selected>2s</option>
                         <option value="5000">5s</option>
@@ -125,6 +131,12 @@
         document.getElementById('poll-interval').addEventListener('change', function() {
             pollMs = parseInt(this.value);
             startPolling();
+        });
+
+        document.getElementById('job-search').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var id = document.getElementById('job-search-input').value.trim();
+            if (id) window.location.href = '/jobs/' + id + '?source=auto';
         });
 
         startPolling();

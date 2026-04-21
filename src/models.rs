@@ -91,11 +91,15 @@ pub struct JobView {
     pub reprocess_count: i32,
     pub source: String,
     #[serde(skip)]
+    pub short_id: String,
+    #[serde(skip)]
     pub created_at_fmt: Option<String>,
     #[serde(skip)]
     pub run_at_fmt: String,
     #[serde(skip)]
     pub updated_at_fmt: String,
+    #[serde(skip)]
+    pub job_data_pretty: String,
 }
 
 impl From<Job> for JobView {
@@ -114,9 +118,11 @@ impl From<Job> for JobView {
             max_attempts: j.max_attempts,
             reprocess_count: j.reprocess_count,
             source: "queue".into(),
+            short_id: j.id.to_string()[..8].to_string(),
             created_at_fmt: None,
             run_at_fmt: String::new(),
             updated_at_fmt: String::new(),
+            job_data_pretty: String::new(),
         }
     }
 }
@@ -137,9 +143,11 @@ impl From<DlqJob> for JobView {
             max_attempts: j.max_attempts,
             reprocess_count: j.reprocess_count,
             source: "dlq".into(),
+            short_id: j.id.to_string()[..8].to_string(),
             created_at_fmt: None,
             run_at_fmt: String::new(),
             updated_at_fmt: String::new(),
+            job_data_pretty: String::new(),
         }
     }
 }
@@ -160,9 +168,11 @@ impl From<ArchivedJob> for JobView {
             max_attempts: j.max_attempts,
             reprocess_count: j.reprocess_count,
             source: "archive".into(),
+            short_id: j.id.to_string()[..8].to_string(),
             created_at_fmt: None,
             run_at_fmt: String::new(),
             updated_at_fmt: String::new(),
+            job_data_pretty: String::new(),
         }
     }
 }

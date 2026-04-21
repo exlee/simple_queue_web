@@ -8,30 +8,30 @@
 
     <div id="counters">
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+            <a href="/queues/browse?status=pending" class="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:bg-gray-800 transition-colors">
                 <div class="text-xs uppercase tracking-wider text-yellow-500 mb-1">Pending</div>
                 <div class="text-2xl font-bold text-white">{{ data.total_pending }}</div>
-            </div>
-            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+            </a>
+            <a href="/queues/browse?status=running" class="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:bg-gray-800 transition-colors">
                 <div class="text-xs uppercase tracking-wider text-blue-500 mb-1">Running</div>
                 <div class="text-2xl font-bold text-white">{{ data.total_running }}</div>
-            </div>
-            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+            </a>
+            <a href="/queues/browse?status=completed" class="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:bg-gray-800 transition-colors">
                 <div class="text-xs uppercase tracking-wider text-green-500 mb-1">Completed</div>
                 <div class="text-2xl font-bold text-white">{{ data.total_completed }}</div>
-            </div>
-            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+            </a>
+            <a href="/queues/browse?status=failed" class="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:bg-gray-800 transition-colors">
                 <div class="text-xs uppercase tracking-wider text-red-500 mb-1">Failed</div>
                 <div class="text-2xl font-bold text-white">{{ data.total_failed }}</div>
-            </div>
-            <div class="bg-gray-900 rounded-lg p-4 border border-red-900/50">
+            </a>
+            <a href="/queues/browse?source=dlq" class="bg-gray-900 rounded-lg p-4 border border-red-900/50 hover:bg-gray-800 transition-colors">
                 <div class="text-xs uppercase tracking-wider text-red-400 mb-1">DLQ</div>
                 <div class="text-2xl font-bold text-white">{{ data.total_dlq }}</div>
-            </div>
-            <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
+            </a>
+            <a href="/queues/browse?source=archive" class="bg-gray-900 rounded-lg p-4 border border-gray-700 hover:bg-gray-800 transition-colors">
                 <div class="text-xs uppercase tracking-wider text-gray-400 mb-1">Archive</div>
                 <div class="text-2xl font-bold text-white">{{ data.total_archive }}</div>
-            </div>
+            </a>
         </div>
     </div>
 

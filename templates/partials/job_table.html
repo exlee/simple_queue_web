@@ -8,8 +8,8 @@
                 <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
                     <th class="px-4 py-3">ID</th>
                     <th class="px-4 py-3"><a href="{{ t.sort_link_status }}" class="hover:text-white">Status</a></th>
-                    <th class="px-4 py-3"><a href="{{ t.sort_link_attempt }}" class="hover:text-white">Attempts</a></th>
-                    <th class="px-4 py-3"><a href="{{ t.sort_link_reprocess_count }}" class="hover:text-white">Reprocess</a></th>
+                    <th class="px-4 py-3"><a href="{{ t.sort_link_attempt }}" class="hover:text-white">Atmpt</a></th>
+                    <th class="px-4 py-3"><a href="{{ t.sort_link_reprocess_count }}" class="hover:text-white">Reproc</a></th>
                     <th class="px-4 py-3"><a href="{{ t.sort_link_created_at }}" class="hover:text-white">Created At</a></th>
                     <th class="px-4 py-3"><a href="{{ t.sort_link_run_at }}" class="hover:text-white">Run At</a></th>
                     <th class="px-4 py-3"><a href="{{ t.sort_link_updated_at }}" class="hover:text-white">Updated At</a></th>
@@ -22,7 +22,7 @@
                     <td class="px-4 py-2">
                         <a href="/jobs/{{ job.id }}?source={{ job.source }}"
                            class="text-blue-400 hover:text-blue-300 font-mono text-xs">
-                            {{ job.id }}
+                            {{ job.short_id }}
                         </a>
                     </td>
                     <td class="px-4 py-2">
@@ -36,11 +36,11 @@
                             {{ job.status }}
                         </span>
                     </td>
-                    <td class="px-4 py-2 text-gray-300 font-mono">{{ job.attempt }}/{{ job.max_attempts }}</td>
-                    <td class="px-4 py-2 text-gray-400 font-mono">{{ job.reprocess_count }}</td>
+                    <td class="px-4 py-2 text-gray-300 font-mono text-xs">{{ job.attempt }}/{{ job.max_attempts }}</td>
+                    <td class="px-4 py-2 text-gray-400 font-mono text-xs">{{ job.reprocess_count }}</td>
                     <td class="px-4 py-2 text-gray-400 text-xs whitespace-nowrap">{% match job.created_at_fmt %}{% when Some(t) %}{{ t }}{% else %}-{% endmatch %}</td>
-                    <td class="px-4 py-2 text-xs whitespace-nowrap">{{ job.run_at_fmt }}</td>
-                    <td class="px-4 py-2 text-xs whitespace-nowrap">{{ job.updated_at_fmt }}</td>
+                    <td class="px-4 py-2 text-xs">{{ job.run_at_fmt }}</td>
+                    <td class="px-4 py-2 text-xs">{{ job.updated_at_fmt }}</td>
                     <td class="px-4 py-2">
                         <div class="flex items-center gap-1">
                             <a href="/jobs/{{ job.id }}?source={{ job.source }}"

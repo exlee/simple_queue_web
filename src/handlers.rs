@@ -160,19 +160,21 @@ fn fmt_millis(dt: &chrono::NaiveDateTime) -> String {
     dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
 }
 
-fn fmt_millis_opt(dt: &Option<chrono::NaiveDateTime>) -> String {
-    match dt {
-        Some(d) => fmt_millis(d),
-        None => "-".to_string(),
-    }
-}
-
 fn sort_link(current_by: &str, col: &str, current_dir: &str, queue: &str, source: &str, page: i64) -> String {
     let dir = if current_by == col && current_dir == "asc" { "desc" } else { "asc" };
     let arrow = if current_by == col {
         if current_dir == "asc" { " \u{2191}" } else { " \u{2193}" }
     } else { "" };
     format!("/queues/browse?queue={}&source={}&page={}&sort_by={}&sort_dir={}{}", queue, source, page, col, dir, arrow)
+}
+
+fn fmt_date_time_opt(dt: &Option<chrono::NaiveDateTime>) -> String {
+    match dt {
+        Some(d) => format!("<div class=\"leading-none\">{}</div><div class=\"text-[10px] text-gray-500 leading-none mt-0.5\">{}</div>",
+            d.format("%Y-%m-%d"),
+            d.format("%H:%M:%S%.3f")),
+        None => "<span class=\"text-gray-600\">-</span>".to_string(),
+    }
 }
 
 fn build_job_table_data(
@@ -192,9 +194,14 @@ fn build_job_table_data(
 
     let mut jobs = jobs;
     for job in &mut jobs {
+        job.short_id = job.id.to_string().split('-').next().unwrap_or(&job.id.to_string()).to_string();
         job.created_at_fmt = Some(fmt_millis(&job.created_at));
-        job.run_at_fmt = fmt_millis_opt(&job.run_at);
-        job.updated_at_fmt = fmt_millis_opt(&job.updated_at);
+        job.run_at_fmt = fmt_date_time_opt(&job.run_at);
+        job.updated_at_fmt = fmt_date_time_opt(&job.updated_at);
+        job.job_data_pretty = match &job.job_data {
+            Some(d) => serde_json::to_string_pretty(d).unwrap_or_else(|_| d.to_string()),
+            None => String::new(),
+        };
     }
 
     JobTableData {

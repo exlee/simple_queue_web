@@ -121,7 +121,7 @@
                 <tr>
                     <td class="px-4 py-3 text-gray-400 align-top">Job Data</td>
                     <td class="px-4 py-3">
-                        <pre class="bg-gray-950 rounded p-3 text-xs text-green-300 overflow-x-auto max-h-80"><code>{% match job.job_data %}{% when Some(d) %}{{ d }}{% else %}null{% endmatch %}</code></pre>
+                        <pre class="bg-gray-950 rounded p-3 text-xs text-green-300 overflow-x-auto max-h-80"><code>{% match job.job_data %}{% when Some(d) %}{{ job.job_data_pretty }}{% else %}null{% endmatch %}</code></pre>
                     </td>
                 </tr>
             </tbody>
