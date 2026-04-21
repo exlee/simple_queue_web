@@ -1,5 +1,5 @@
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Nullable, Text, Timestamptz};
+use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamptz};
 use diesel::PgConnection;
 
 use crate::models::{Job, DlqJob, ArchivedJob, JobView, QueueStatusCount, TableStats};
@@ -180,12 +180,12 @@ struct JobRow {
     run_at: Option<chrono::NaiveDateTime>,
     #[diesel(sql_type = Nullable<Timestamptz>)]
     updated_at: Option<chrono::NaiveDateTime>,
-    #[diesel(sql_type = BigInt)]
-    attempt: i64,
-    #[diesel(sql_type = BigInt)]
-    max_attempts: i64,
-    #[diesel(sql_type = BigInt)]
-    reprocess_count: i64,
+    #[diesel(sql_type = Integer)]
+    attempt: i32,
+    #[diesel(sql_type = Integer)]
+    max_attempts: i32,
+    #[diesel(sql_type = Integer)]
+    reprocess_count: i32,
 }
 
 fn job_row_to_view(row: JobRow, source: &str) -> JobView {
@@ -199,9 +199,9 @@ fn job_row_to_view(row: JobRow, source: &str) -> JobView {
         created_at: row.created_at,
         run_at: row.run_at,
         updated_at: row.updated_at,
-        attempt: row.attempt as i32,
-        max_attempts: row.max_attempts as i32,
-        reprocess_count: row.reprocess_count as i32,
+        attempt: row.attempt,
+        max_attempts: row.max_attempts,
+        reprocess_count: row.reprocess_count,
         source: source.to_string(),
     }
 }
@@ -222,37 +222,55 @@ pub fn get_jobs(
 
     let offset = (page - 1) * per_page;
 
-    let sql = if status_filter.is_some() {
-        format!(
-            "SELECT id, fingerprint, unique_key, queue, job_data, status, created_at, run_at, updated_at, \
-             attempt, max_attempts, reprocess_count \
-             FROM {} WHERE queue = $1 AND status = $2 \
-             ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-            table_name
-        )
-    } else {
-        format!(
-            "SELECT id, fingerprint, unique_key, queue, job_data, status, created_at, run_at, updated_at, \
-             attempt, max_attempts, reprocess_count \
-             FROM {} WHERE queue = $1 \
-             ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-            table_name
-        )
+    let filter = match (queue_name, status_filter) {
+        ("", None) => String::new(),
+        ("", Some(_)) => format!("WHERE status = $1"),
+        (_, None) => format!("WHERE queue = $1"),
+        (_, Some(_)) => format!("WHERE queue = $1 AND status = $2"),
     };
 
-    let rows = if let Some(status) = status_filter {
-        diesel::sql_query(sql)
-            .bind::<Text, _>(queue_name)
+    let sql = format!(
+        "SELECT id, fingerprint, unique_key, queue, job_data, status, created_at, run_at, updated_at, \
+         attempt, max_attempts, reprocess_count \
+         FROM {} {} \
+         ORDER BY created_at DESC LIMIT {} OFFSET {}",
+        table_name,
+        filter,
+        match (queue_name, status_filter) {
+            ("", None) => "$1",
+            ("", Some(_)) => "$2",
+            (_, None) => "$2",
+            (_, Some(_)) => "$3",
+        },
+        match (queue_name, status_filter) {
+            ("", None) => "$2",
+            ("", Some(_)) => "$3",
+            (_, None) => "$3",
+            (_, Some(_)) => "$4",
+        },
+    );
+
+    let rows = match (queue_name, status_filter) {
+        ("", None) => diesel::sql_query(sql)
+            .bind::<BigInt, _>(per_page)
+            .bind::<BigInt, _>(offset)
+            .load::<JobRow>(conn),
+        ("", Some(status)) => diesel::sql_query(sql)
             .bind::<Text, _>(status)
             .bind::<BigInt, _>(per_page)
             .bind::<BigInt, _>(offset)
-            .load::<JobRow>(conn)
-    } else {
-        diesel::sql_query(sql)
-            .bind::<Text, _>(queue_name)
+            .load::<JobRow>(conn),
+        (q, None) => diesel::sql_query(sql)
+            .bind::<Text, _>(q)
             .bind::<BigInt, _>(per_page)
             .bind::<BigInt, _>(offset)
-            .load::<JobRow>(conn)
+            .load::<JobRow>(conn),
+        (q, Some(status)) => diesel::sql_query(sql)
+            .bind::<Text, _>(q)
+            .bind::<Text, _>(status)
+            .bind::<BigInt, _>(per_page)
+            .bind::<BigInt, _>(offset)
+            .load::<JobRow>(conn),
     };
 
     rows.unwrap_or_default()
@@ -279,32 +297,34 @@ pub fn count_jobs(
         _ => "job_queue",
     };
 
-    let sql = if let Some(_status) = status_filter {
-        format!(
-            "SELECT COUNT(*)::bigint AS count FROM {} WHERE queue = $1 AND status = $2",
-            table_name
-        )
-    } else {
-        format!(
-            "SELECT COUNT(*)::bigint AS count FROM {} WHERE queue = $1",
-            table_name
-        )
+    let filter = match (queue_name, status_filter) {
+        ("", None) => String::new(),
+        ("", Some(_)) => format!("WHERE status = $1"),
+        (_, None) => format!("WHERE queue = $1"),
+        (_, Some(_)) => format!("WHERE queue = $1 AND status = $2"),
     };
 
-    if let Some(status) = status_filter {
-        diesel::sql_query(sql)
-            .bind::<Text, _>(queue_name)
+    let sql = format!(
+        "SELECT COUNT(*)::bigint AS count FROM {} {}",
+        table_name, filter
+    );
+
+    let result = match (queue_name, status_filter) {
+        ("", None) => diesel::sql_query(sql)
+            .get_result::<CountRow>(conn),
+        ("", Some(status)) => diesel::sql_query(sql)
             .bind::<Text, _>(status)
-            .get_result::<CountRow>(conn)
-            .map(|r| r.count)
-            .unwrap_or(0)
-    } else {
-        diesel::sql_query(sql)
-            .bind::<Text, _>(queue_name)
-            .get_result::<CountRow>(conn)
-            .map(|r| r.count)
-            .unwrap_or(0)
-    }
+            .get_result::<CountRow>(conn),
+        (q, None) => diesel::sql_query(sql)
+            .bind::<Text, _>(q)
+            .get_result::<CountRow>(conn),
+        (q, Some(status)) => diesel::sql_query(sql)
+            .bind::<Text, _>(q)
+            .bind::<Text, _>(status)
+            .get_result::<CountRow>(conn),
+    };
+
+    result.map(|r| r.count).unwrap_or(0)
 }
 
 pub fn get_job(conn: &mut PgConnection, id: uuid::Uuid, source: &str) -> Option<JobView> {

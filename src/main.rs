@@ -41,7 +41,7 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001")
         .await
-        .expect("Failed to bind to 0.0.0.0:3000");
+        .expect("Failed to bind to 0.0.0.0:3001");
 
     tracing::info!("Queue Manager running on http://0.0.0.0:3001");
     axum::serve(listener, app).await.unwrap();
