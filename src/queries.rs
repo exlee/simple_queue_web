@@ -1,5 +1,4 @@
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamptz};
 use diesel::PgConnection;
 
 use crate::models::{Job, DlqJob, ArchivedJob, JobView, QueueStatusCount, TableStats};
@@ -12,99 +11,57 @@ pub fn set_statement_timeout(conn: &mut PgConnection) {
 }
 
 pub fn get_queue_status_counts(conn: &mut PgConnection) -> Vec<QueueStatusCount> {
-    #[derive(QueryableByName)]
-    struct Row {
-        #[diesel(sql_type = Text)]
-        queue: String,
-        #[diesel(sql_type = Text)]
-        status: String,
-        #[diesel(sql_type = BigInt)]
-        count: i64,
-    }
-
-    let rows = diesel::sql_query(
-        "SELECT queue, status, COUNT(*)::bigint AS count FROM job_queue GROUP BY queue, status ORDER BY queue, status",
-    )
-    .load::<Row>(conn)
-    .unwrap_or_default();
-
-    rows.into_iter()
-        .map(|r| QueueStatusCount {
-            queue: r.queue,
-            status: r.status,
-            count: r.count,
-        })
+    job_queue::table
+        .group_by((job_queue::queue, job_queue::status))
+        .select((job_queue::queue, job_queue::status, diesel::dsl::count_star()))
+        .order_by((job_queue::queue, job_queue::status))
+        .load(conn)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(queue, status, count)| QueueStatusCount { queue, status, count })
         .collect()
 }
 
 pub fn get_dlq_counts(conn: &mut PgConnection) -> Vec<QueueStatusCount> {
-    #[derive(QueryableByName)]
-    struct Row {
-        #[diesel(sql_type = Text)]
-        queue: String,
-        #[diesel(sql_type = Text)]
-        status: String,
-        #[diesel(sql_type = BigInt)]
-        count: i64,
-    }
-
-    let rows = diesel::sql_query(
-        "SELECT queue, status, COUNT(*)::bigint AS count FROM job_queue_dlq GROUP BY queue, status ORDER BY queue, status",
-    )
-    .load::<Row>(conn)
-    .unwrap_or_default();
-
-    rows.into_iter()
-        .map(|r| QueueStatusCount {
-            queue: r.queue,
-            status: r.status,
-            count: r.count,
-        })
+    job_queue_dlq::table
+        .group_by((job_queue_dlq::queue, job_queue_dlq::status))
+        .select((job_queue_dlq::queue, job_queue_dlq::status, diesel::dsl::count_star()))
+        .order_by((job_queue_dlq::queue, job_queue_dlq::status))
+        .load(conn)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(queue, status, count)| QueueStatusCount { queue, status, count })
         .collect()
 }
 
 pub fn get_archive_counts(conn: &mut PgConnection) -> Vec<QueueStatusCount> {
-    #[derive(QueryableByName)]
-    struct Row {
-        #[diesel(sql_type = Text)]
-        queue: String,
-        #[diesel(sql_type = Text)]
-        status: String,
-        #[diesel(sql_type = BigInt)]
-        count: i64,
-    }
-
-    let rows = diesel::sql_query(
-        "SELECT queue, status, COUNT(*)::bigint AS count FROM job_queue_archive GROUP BY queue, status ORDER BY queue, status",
-    )
-    .load::<Row>(conn)
-    .unwrap_or_default();
-
-    rows.into_iter()
-        .map(|r| QueueStatusCount {
-            queue: r.queue,
-            status: r.status,
-            count: r.count,
-        })
+    job_queue_archive::table
+        .group_by((job_queue_archive::queue, job_queue_archive::status))
+        .select((job_queue_archive::queue, job_queue_archive::status, diesel::dsl::count_star()))
+        .order_by((job_queue_archive::queue, job_queue_archive::status))
+        .load(conn)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(queue, status, count)| QueueStatusCount { queue, status, count })
         .collect()
 }
 
 pub fn get_table_stats(conn: &mut PgConnection) -> TableStats {
     #[derive(QueryableByName)]
     struct Row {
-        #[diesel(sql_type = BigInt)]
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
         dead_tuples: i64,
-        #[diesel(sql_type = BigInt)]
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
         live_tuples: i64,
-        #[diesel(sql_type = Nullable<Timestamptz>)]
+        #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Timestamptz>)]
         last_vacuum: Option<chrono::NaiveDateTime>,
-        #[diesel(sql_type = Nullable<Timestamptz>)]
+        #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Timestamptz>)]
         last_autovacuum: Option<chrono::NaiveDateTime>,
-        #[diesel(sql_type = BigInt)]
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
         total_inserts: i64,
-        #[diesel(sql_type = BigInt)]
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
         total_updates: i64,
-        #[diesel(sql_type = BigInt)]
+        #[diesel(sql_type = diesel::sql_types::BigInt)]
         total_deletes: i64,
     }
 
@@ -160,52 +117,6 @@ pub fn get_distinct_queues(conn: &mut PgConnection) -> Vec<String> {
     all
 }
 
-#[derive(QueryableByName)]
-struct JobRow {
-    #[diesel(sql_type = diesel::sql_types::Uuid)]
-    id: uuid::Uuid,
-    #[diesel(sql_type = Nullable<Text>)]
-    fingerprint: Option<String>,
-    #[diesel(sql_type = Nullable<Text>)]
-    unique_key: Option<String>,
-    #[diesel(sql_type = Text)]
-    queue: String,
-    #[diesel(sql_type = Nullable<diesel::sql_types::Jsonb>)]
-    job_data: Option<serde_json::Value>,
-    #[diesel(sql_type = Text)]
-    status: String,
-    #[diesel(sql_type = Timestamptz)]
-    created_at: chrono::NaiveDateTime,
-    #[diesel(sql_type = Nullable<Timestamptz>)]
-    run_at: Option<chrono::NaiveDateTime>,
-    #[diesel(sql_type = Nullable<Timestamptz>)]
-    updated_at: Option<chrono::NaiveDateTime>,
-    #[diesel(sql_type = Integer)]
-    attempt: i32,
-    #[diesel(sql_type = Integer)]
-    max_attempts: i32,
-    #[diesel(sql_type = Integer)]
-    reprocess_count: i32,
-}
-
-fn job_row_to_view(row: JobRow, source: &str) -> JobView {
-    JobView {
-        id: row.id,
-        fingerprint: row.fingerprint,
-        unique_key: row.unique_key,
-        queue: row.queue,
-        job_data: row.job_data,
-        status: row.status,
-        created_at: row.created_at,
-        run_at: row.run_at,
-        updated_at: row.updated_at,
-        attempt: row.attempt,
-        max_attempts: row.max_attempts,
-        reprocess_count: row.reprocess_count,
-        source: source.to_string(),
-    }
-}
-
 pub fn get_jobs(
     conn: &mut PgConnection,
     queue_name: &str,
@@ -214,75 +125,57 @@ pub fn get_jobs(
     per_page: i64,
     source: &str,
 ) -> Vec<JobView> {
-    let table_name = match source {
-        "dlq" => "job_queue_dlq",
-        "archive" => "job_queue_archive",
-        _ => "job_queue",
-    };
-
     let offset = (page - 1) * per_page;
 
-    let filter = match (queue_name, status_filter) {
-        ("", None) => String::new(),
-        ("", Some(_)) => format!("WHERE status = $1"),
-        (_, None) => format!("WHERE queue = $1"),
-        (_, Some(_)) => format!("WHERE queue = $1 AND status = $2"),
+    let jobs: Vec<JobView> = match source {
+        "dlq" => {
+            let mut query = job_queue_dlq::table
+                .order_by(job_queue_dlq::created_at.desc())
+                .limit(per_page)
+                .offset(offset)
+                .into_boxed();
+            if !queue_name.is_empty() {
+                query = query.filter(job_queue_dlq::queue.eq(queue_name));
+            }
+            if let Some(status) = status_filter {
+                query = query.filter(job_queue_dlq::status.eq(status));
+            }
+            query.load::<DlqJob>(conn).unwrap_or_default()
+                .into_iter().map(Into::into).collect()
+        }
+        "archive" => {
+            let mut query = job_queue_archive::table
+                .order_by(job_queue_archive::created_at.desc())
+                .limit(per_page)
+                .offset(offset)
+                .into_boxed();
+            if !queue_name.is_empty() {
+                query = query.filter(job_queue_archive::queue.eq(queue_name));
+            }
+            if let Some(status) = status_filter {
+                query = query.filter(job_queue_archive::status.eq(status));
+            }
+            query.load::<ArchivedJob>(conn).unwrap_or_default()
+                .into_iter().map(Into::into).collect()
+        }
+        _ => {
+            let mut query = job_queue::table
+                .order_by(job_queue::created_at.desc())
+                .limit(per_page)
+                .offset(offset)
+                .into_boxed();
+            if !queue_name.is_empty() {
+                query = query.filter(job_queue::queue.eq(queue_name));
+            }
+            if let Some(status) = status_filter {
+                query = query.filter(job_queue::status.eq(status));
+            }
+            query.load::<Job>(conn).unwrap_or_default()
+                .into_iter().map(Into::into).collect()
+        }
     };
 
-    let sql = format!(
-        "SELECT id, fingerprint, unique_key, queue, job_data, status, created_at, run_at, updated_at, \
-         attempt, max_attempts, reprocess_count \
-         FROM {} {} \
-         ORDER BY created_at DESC LIMIT {} OFFSET {}",
-        table_name,
-        filter,
-        match (queue_name, status_filter) {
-            ("", None) => "$1",
-            ("", Some(_)) => "$2",
-            (_, None) => "$2",
-            (_, Some(_)) => "$3",
-        },
-        match (queue_name, status_filter) {
-            ("", None) => "$2",
-            ("", Some(_)) => "$3",
-            (_, None) => "$3",
-            (_, Some(_)) => "$4",
-        },
-    );
-
-    let rows = match (queue_name, status_filter) {
-        ("", None) => diesel::sql_query(sql)
-            .bind::<BigInt, _>(per_page)
-            .bind::<BigInt, _>(offset)
-            .load::<JobRow>(conn),
-        ("", Some(status)) => diesel::sql_query(sql)
-            .bind::<Text, _>(status)
-            .bind::<BigInt, _>(per_page)
-            .bind::<BigInt, _>(offset)
-            .load::<JobRow>(conn),
-        (q, None) => diesel::sql_query(sql)
-            .bind::<Text, _>(q)
-            .bind::<BigInt, _>(per_page)
-            .bind::<BigInt, _>(offset)
-            .load::<JobRow>(conn),
-        (q, Some(status)) => diesel::sql_query(sql)
-            .bind::<Text, _>(q)
-            .bind::<Text, _>(status)
-            .bind::<BigInt, _>(per_page)
-            .bind::<BigInt, _>(offset)
-            .load::<JobRow>(conn),
-    };
-
-    rows.unwrap_or_default()
-        .into_iter()
-        .map(|r| job_row_to_view(r, source))
-        .collect()
-}
-
-#[derive(QueryableByName)]
-struct CountRow {
-    #[diesel(sql_type = BigInt)]
-    count: i64,
+    jobs
 }
 
 pub fn count_jobs(
@@ -291,62 +184,59 @@ pub fn count_jobs(
     status_filter: Option<&str>,
     source: &str,
 ) -> i64 {
-    let table_name = match source {
-        "dlq" => "job_queue_dlq",
-        "archive" => "job_queue_archive",
-        _ => "job_queue",
+    let count: i64 = match source {
+        "dlq" => {
+            let mut query = job_queue_dlq::table.count().into_boxed();
+            if !queue_name.is_empty() {
+                query = query.filter(job_queue_dlq::queue.eq(queue_name));
+            }
+            if let Some(status) = status_filter {
+                query = query.filter(job_queue_dlq::status.eq(status));
+            }
+            query.first(conn).unwrap_or(0)
+        }
+        "archive" => {
+            let mut query = job_queue_archive::table.count().into_boxed();
+            if !queue_name.is_empty() {
+                query = query.filter(job_queue_archive::queue.eq(queue_name));
+            }
+            if let Some(status) = status_filter {
+                query = query.filter(job_queue_archive::status.eq(status));
+            }
+            query.first(conn).unwrap_or(0)
+        }
+        _ => {
+            let mut query = job_queue::table.count().into_boxed();
+            if !queue_name.is_empty() {
+                query = query.filter(job_queue::queue.eq(queue_name));
+            }
+            if let Some(status) = status_filter {
+                query = query.filter(job_queue::status.eq(status));
+            }
+            query.first(conn).unwrap_or(0)
+        }
     };
 
-    let filter = match (queue_name, status_filter) {
-        ("", None) => String::new(),
-        ("", Some(_)) => format!("WHERE status = $1"),
-        (_, None) => format!("WHERE queue = $1"),
-        (_, Some(_)) => format!("WHERE queue = $1 AND status = $2"),
-    };
-
-    let sql = format!(
-        "SELECT COUNT(*)::bigint AS count FROM {} {}",
-        table_name, filter
-    );
-
-    let result = match (queue_name, status_filter) {
-        ("", None) => diesel::sql_query(sql)
-            .get_result::<CountRow>(conn),
-        ("", Some(status)) => diesel::sql_query(sql)
-            .bind::<Text, _>(status)
-            .get_result::<CountRow>(conn),
-        (q, None) => diesel::sql_query(sql)
-            .bind::<Text, _>(q)
-            .get_result::<CountRow>(conn),
-        (q, Some(status)) => diesel::sql_query(sql)
-            .bind::<Text, _>(q)
-            .bind::<Text, _>(status)
-            .get_result::<CountRow>(conn),
-    };
-
-    result.map(|r| r.count).unwrap_or(0)
+    count
 }
 
 pub fn get_job(conn: &mut PgConnection, id: uuid::Uuid, source: &str) -> Option<JobView> {
     match source {
-        "dlq" => {
-            let job: Option<DlqJob> = job_queue_dlq::table
-                .find(id)
-                .first(conn)
-                .ok();
-            job.map(Into::into)
-        }
-        "archive" => {
-            let job: Option<ArchivedJob> = job_queue_archive::table
-                .find(id)
-                .first(conn)
-                .ok();
-            job.map(Into::into)
-        }
-        _ => {
-            let job: Option<Job> = job_queue::table.find(id).first(conn).ok();
-            job.map(Into::into)
-        }
+        "dlq" => job_queue_dlq::table
+            .find(id)
+            .first::<DlqJob>(conn)
+            .ok()
+            .map(Into::into),
+        "archive" => job_queue_archive::table
+            .find(id)
+            .first::<ArchivedJob>(conn)
+            .ok()
+            .map(Into::into),
+        _ => job_queue::table
+            .find(id)
+            .first::<Job>(conn)
+            .ok()
+            .map(Into::into),
     }
 }
 
@@ -394,8 +284,8 @@ pub fn requeue_from_dlq(conn: &mut PgConnection, id: uuid::Uuid) -> Result<(), S
         FROM moved",
     )
     .bind::<diesel::sql_types::Uuid, _>(id)
-    .bind::<Timestamptz, _>(now)
-    .bind::<Timestamptz, _>(now)
+    .bind::<diesel::sql_types::Timestamptz, _>(now)
+    .bind::<diesel::sql_types::Timestamptz, _>(now)
     .execute(conn)
     .map_err(|e| e.to_string())?;
 
@@ -418,8 +308,8 @@ pub fn requeue_from_archive(conn: &mut PgConnection, id: uuid::Uuid) -> Result<(
         FROM moved",
     )
     .bind::<diesel::sql_types::Uuid, _>(id)
-    .bind::<Timestamptz, _>(now)
-    .bind::<Timestamptz, _>(now)
+    .bind::<diesel::sql_types::Timestamptz, _>(now)
+    .bind::<diesel::sql_types::Timestamptz, _>(now)
     .execute(conn)
     .map_err(|e| e.to_string())?;
 
