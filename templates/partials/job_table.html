@@ -1,0 +1,87 @@
+<div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+    {% if t.jobs.is_empty() %}
+    <div class="px-4 py-12 text-center text-gray-500">No jobs found</div>
+    {% else %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
+                    <th class="px-4 py-3">ID</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Attempts</th>
+                    <th class="px-4 py-3">Reprocess</th>
+                    <th class="px-4 py-3">Created At</th>
+                    <th class="px-4 py-3">Run At</th>
+                    <th class="px-4 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in t.jobs %}
+                <tr class="border-t border-gray-800 hover:bg-gray-800/50">
+                    <td class="px-4 py-2">
+                        <a href="/jobs/{{ job.id }}?source={{ job.source }}"
+                           class="text-blue-400 hover:text-blue-300 font-mono text-xs">
+                            {{ job.id }}
+                        </a>
+                    </td>
+                    <td class="px-4 py-2">
+                        <span class="text-xs px-2 py-0.5 rounded
+                            {% if job.status == "pending" %}bg-yellow-900/50 text-yellow-300
+                            {% else if job.status == "running" %}bg-blue-900/50 text-blue-300
+                            {% else if job.status == "completed" %}bg-green-900/50 text-green-300
+                            {% else if job.status == "failed" %}bg-red-900/50 text-red-300
+                            {% else %}bg-gray-800 text-gray-400{% endif %}">
+                            {{ job.status }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2 text-gray-300 font-mono">{{ job.attempt }}/{{ job.max_attempts }}</td>
+                    <td class="px-4 py-2 text-gray-400 font-mono">{{ job.reprocess_count }}</td>
+                    <td class="px-4 py-2 text-gray-400 text-xs whitespace-nowrap">{{ job.created_at }}</td>
+                    <td class="px-4 py-2 text-xs whitespace-nowrap">
+                        {% match job.run_at %}{% when Some(t) %}<span class="text-gray-300">{{ t }}</span>{% else %}<span class="text-gray-600">-</span>{% endmatch %}
+                    </td>
+                    <td class="px-4 py-2">
+                        <div class="flex items-center gap-1">
+                            <a href="/jobs/{{ job.id }}?source={{ job.source }}"
+                               class="text-xs text-blue-400 hover:text-blue-300 px-2 py-1">Inspect</a>
+                            {% if t.is_queue_source %}
+                            <form method="post" action="/jobs/{{ job.id }}/restart?queue={{ t.selected_queue }}&page={{ t.page }}&source=queue"
+                                  class="inline" onsubmit="return confirm('Restart this job?')">
+                                <button type="submit" class="text-xs text-yellow-400 hover:text-yellow-300 px-2 py-1">Restart</button>
+                            </form>
+                            {% endif %}
+                            {% if t.is_dlq_source || t.is_archive_source %}
+                            <form method="post" action="/jobs/{{ job.id }}/requeue?queue={{ t.selected_queue }}&page={{ t.page }}&source={{ t.selected_source }}"
+                                  class="inline" onsubmit="return confirm('Move this job to queue as pending?')">
+                                <button type="submit" class="text-xs text-green-400 hover:text-green-300 px-2 py-1">Requeue</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="px-4 py-3 border-t border-gray-800 flex items-center justify-between text-sm">
+        <div class="text-gray-400">
+            {{ t.show_from }}-{{ t.show_to }} of {{ t.total }}
+        </div>
+        <div class="flex items-center gap-2">
+            {% if t.page > 1 %}
+            <a href="/queues/browse?queue={{ t.selected_queue }}&source={{ t.selected_source }}&page={{ t.page - 1 }}"
+               class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition-colors">
+                Prev
+            </a>
+            {% endif %}
+            <span class="text-gray-500 text-xs">Page {{ t.page }} of {{ t.total_pages }}</span>
+            {% if t.page < t.total_pages %}
+            <a href="/queues/browse?queue={{ t.selected_queue }}&source={{ t.selected_source }}&page={{ t.page + 1 }}"
+               class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition-colors">
+                Next
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>

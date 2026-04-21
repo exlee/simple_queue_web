@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Job {{ job.id }} - Queue Manager{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <a href="/queues/browse?queue={{ job.queue }}&source={{ job.source }}" class="text-sm text-blue-400 hover:text-blue-300">&larr; Back</a>
+            <span class="text-gray-700">|</span>
+            <span class="text-lg font-bold text-white">Job Details</span>
+            <span class="text-xs px-2 py-0.5 rounded
+                {% if job.source == "dlq" %}bg-red-900/50 text-red-300 border border-red-800
+                {% else if job.source == "archive" %}bg-gray-800 text-gray-400 border border-gray-700
+                {% else %}bg-blue-900/50 text-blue-300 border border-blue-800{% endif %}">
+                {{ job.source }}
+            </span>
+        </div>
+        <div class="flex items-center gap-2">
+            {% if job.source == "queue" %}
+            <form method="post" action="/jobs/{{ job.id }}/restart?queue={{ job.queue }}&page=1&source=queue">
+                <button type="submit"
+                        class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-medium rounded transition-colors"
+                        onclick="return confirm('Restart this job?')">
+                    Restart
+                </button>
+            </form>
+            {% endif %}
+            {% if job.source == "dlq" || job.source == "archive" %}
+            <form method="post" action="/jobs/{{ job.id }}/requeue?queue={{ job.queue }}&page=1&source={{ job.source }}">
+                <button type="submit"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition-colors"
+                        onclick="return confirm('Move this job back to the queue as pending?')">
+                    Move to Queue
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+        <table class="w-full text-sm">
+            <tbody>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 w-48 align-top">ID</td>
+                    <td class="px-4 py-3 text-white font-mono text-xs">{{ job.id }}</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Queue</td>
+                    <td class="px-4 py-3">
+                        <a href="/queues/browse?queue={{ job.queue }}&source={{ job.source }}" class="text-blue-400 hover:text-blue-300">{{ job.queue }}</a>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Status</td>
+                    <td class="px-4 py-3">
+                        <span class="text-xs px-2 py-0.5 rounded
+                            {% if job.status == "pending" %}bg-yellow-900/50 text-yellow-300
+                            {% else if job.status == "running" %}bg-blue-900/50 text-blue-300
+                            {% else if job.status == "completed" %}bg-green-900/50 text-green-300
+                            {% else if job.status == "failed" %}bg-red-900/50 text-red-300
+                            {% else %}bg-gray-800 text-gray-400{% endif %}">
+                            {{ job.status }}
+                        </span>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Attempts</td>
+                    <td class="px-4 py-3 text-white">
+                        {{ job.attempt }} / {{ job.max_attempts }}
+                        {% if job.attempt >= job.max_attempts %}
+                        <span class="text-red-400 text-xs ml-2">(max reached)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Reprocess Count</td>
+                    <td class="px-4 py-3 text-white">{{ job.reprocess_count }}</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Fingerprint</td>
+                    <td class="px-4 py-3 text-white font-mono text-xs">
+                        {% match job.fingerprint %}{% when Some(fp) %}{{ fp }}{% else %}<span class="text-gray-600">null</span>{% endmatch %}
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Unique Key</td>
+                    <td class="px-4 py-3 text-white font-mono text-xs">
+                        {% match job.unique_key %}{% when Some(uk) %}{{ uk }}{% else %}<span class="text-gray-600">null</span>{% endmatch %}
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Created At</td>
+                    <td class="px-4 py-3 text-white text-xs">{{ job.created_at }}</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Run At</td>
+                    <td class="px-4 py-3 text-xs">
+                        {% match job.run_at %}{% when Some(t) %}<span class="text-white">{{ t }}</span>{% else %}<span class="text-gray-600">null</span>{% endmatch %}
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Updated At</td>
+                    <td class="px-4 py-3 text-xs">
+                        {% match job.updated_at %}{% when Some(t) %}<span class="text-white">{{ t }}</span>{% else %}<span class="text-gray-600">null</span>{% endmatch %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="px-4 py-3 text-gray-400 align-top">Job Data</td>
+                    <td class="px-4 py-3">
+                        <pre class="bg-gray-950 rounded p-3 text-xs text-green-300 overflow-x-auto max-h-80"><code>{% match job.job_data %}{% when Some(d) %}{{ d }}{% else %}null{% endmatch %}</code></pre>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

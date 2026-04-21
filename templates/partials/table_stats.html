@@ -1,0 +1,35 @@
+<div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-800 text-sm font-medium text-gray-300">Table Health (job_queue)</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-0">
+        <div class="px-4 py-3 border-b md:border-b-0 md:border-r border-gray-800">
+            <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">Dead Tuples</div>
+            <div class="text-xl font-bold {% if data.dead_tuples > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                {{ data.dead_tuples }}
+            </div>
+        </div>
+        <div class="px-4 py-3 border-b md:border-b-0 md:border-r border-gray-800">
+            <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">Last Vacuum</div>
+            {% if data.last_vacuum != "Never" %}
+            <div class="text-sm font-mono text-gray-300">{{ data.last_vacuum }}</div>
+            {% else %}
+            <div class="text-sm font-mono text-gray-600">Never</div>
+            {% endif %}
+        </div>
+        <div class="px-4 py-3">
+            <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">Last Autovacuum</div>
+            {% if data.last_autovacuum != "Never" %}
+            <div class="text-sm font-mono text-gray-300">{{ data.last_autovacuum }}</div>
+            {% else %}
+            <div class="text-sm font-mono text-gray-600">Never</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="border-t border-gray-800 px-4 py-2">
+        <div class="flex items-center gap-6 text-xs text-gray-500">
+            <span>Live: <span class="text-gray-300">{{ data.live_tuples }}</span></span>
+            <span>Ins: <span class="text-gray-300">{{ data.total_inserts }}</span></span>
+            <span>Upd: <span class="text-gray-300">{{ data.total_updates }}</span></span>
+            <span>Del: <span class="text-gray-300">{{ data.total_deletes }}</span></span>
+        </div>
+    </div>
+</div>

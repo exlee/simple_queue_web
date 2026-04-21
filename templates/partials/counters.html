@@ -1,0 +1,86 @@
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+        <div class="text-xs uppercase tracking-wider text-yellow-500 mb-1">Pending</div>
+        <div class="text-2xl font-bold text-white">{{ data.total_pending }}</div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+        <div class="text-xs uppercase tracking-wider text-blue-500 mb-1">Running</div>
+        <div class="text-2xl font-bold text-white">{{ data.total_running }}</div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+        <div class="text-xs uppercase tracking-wider text-green-500 mb-1">Completed</div>
+        <div class="text-2xl font-bold text-white">{{ data.total_completed }}</div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+        <div class="text-xs uppercase tracking-wider text-red-500 mb-1">Failed</div>
+        <div class="text-2xl font-bold text-white">{{ data.total_failed }}</div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-red-900/50">
+        <div class="text-xs uppercase tracking-wider text-red-400 mb-1">DLQ</div>
+        <div class="text-2xl font-bold text-white">{{ data.total_dlq }}</div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
+        <div class="text-xs uppercase tracking-wider text-gray-400 mb-1">Archive</div>
+        <div class="text-2xl font-bold text-white">{{ data.total_archive }}</div>
+    </div>
+</div>
+{% if !data.queue_breakdown.is_empty() %}
+<div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-6">
+    <div class="px-4 py-3 border-b border-gray-800 text-sm font-medium text-gray-300">Queue Breakdown</div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
+                    <th class="px-4 py-2">Queue</th>
+                    <th class="px-4 py-2 text-right">Pending</th>
+                    <th class="px-4 py-2 text-right">Running</th>
+                    <th class="px-4 py-2 text-right">Completed</th>
+                    <th class="px-4 py-2 text-right">Failed</th>
+                    <th class="px-4 py-2 text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.queue_breakdown %}
+                <tr class="border-t border-gray-800 hover:bg-gray-800/50">
+                    <td class="px-4 py-2 text-white">
+                        <a href="/queues/browse?queue={{ row.queue }}" class="hover:text-blue-300">{{ row.queue }}</a>
+                    </td>
+                    <td class="px-4 py-2 text-right text-yellow-400">{{ row.pending }}</td>
+                    <td class="px-4 py-2 text-right text-blue-400">{{ row.running }}</td>
+                    <td class="px-4 py-2 text-right text-green-400">{{ row.completed }}</td>
+                    <td class="px-4 py-2 text-right text-red-400">{{ row.failed }}</td>
+                    <td class="px-4 py-2 text-right text-gray-300">{{ row.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% if !data.dlq_counts.is_empty() %}
+<div class="bg-gray-900 rounded-lg border border-red-900/50 overflow-hidden mb-6">
+    <div class="px-4 py-3 border-b border-red-900/30 text-sm font-medium text-red-400">Dead Letter Queue</div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
+                    <th class="px-4 py-2">Queue</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2 text-right">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in data.dlq_counts %}
+                <tr class="border-t border-gray-800 hover:bg-gray-800/50">
+                    <td class="px-4 py-2 text-white">
+                        <a href="/queues/browse?queue={{ c.queue }}&source=dlq" class="hover:text-blue-300">{{ c.queue }}</a>
+                    </td>
+                    <td class="px-4 py-2 text-gray-300">{{ c.status }}</td>
+                    <td class="px-4 py-2 text-right text-red-400 font-mono">{{ c.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
