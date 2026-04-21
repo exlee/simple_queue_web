@@ -112,11 +112,9 @@
                 </tr>
                 <tr class="border-b border-gray-800">
                     <td class="px-4 py-3 text-gray-400 align-top">Run At</td>
-                    <td class="px-4 py-3 text-xs">{{ job.run_at_fmt }}</td>
-                </tr>
-                <tr class="border-b border-gray-800">
-                    <td class="px-4 py-3 text-gray-400 align-top">Updated At</td>
-                    <td class="px-4 py-3 text-xs">{{ job.updated_at_fmt }}</td>
+                    <td class="px-4 py-3 text-xs"><div class="leading-none">{{ job.run_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.run_at_time }}</div></td>
+
+                    <td class="px-4 py-3 text-xs"><div class="leading-none">{{ job.updated_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.updated_at_time }}</div></td>
                 </tr>
                 <tr>
                     <td class="px-4 py-3 text-gray-400 align-top">Job Data</td>

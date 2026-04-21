@@ -168,12 +168,13 @@ fn sort_link(current_by: &str, col: &str, current_dir: &str, queue: &str, source
     format!("/queues/browse?queue={}&source={}&page={}&sort_by={}&sort_dir={}{}", queue, source, page, col, dir, arrow)
 }
 
-fn fmt_date_time_opt(dt: &Option<chrono::NaiveDateTime>) -> String {
+fn fmt_date_time_opt(dt: &Option<chrono::NaiveDateTime>) -> (String, String) {
     match dt {
-        Some(d) => format!("<div class=\"leading-none\">{}</div><div class=\"text-[10px] text-gray-500 leading-none mt-0.5\">{}</div>",
-            d.format("%Y-%m-%d"),
-            d.format("%H:%M:%S%.3f")),
-        None => "<span class=\"text-gray-600\">-</span>".to_string(),
+        Some(d) => (
+            d.format("%Y-%m-%d").to_string(),
+            d.format("%H:%M:%S%.3f").to_string(),
+        ),
+        None => ("-".into(), "".into()),
     }
 }
 
@@ -196,8 +197,12 @@ fn build_job_table_data(
     for job in &mut jobs {
         job.short_id = job.id.to_string().split('-').next().unwrap_or(&job.id.to_string()).to_string();
         job.created_at_fmt = Some(fmt_millis(&job.created_at));
-        job.run_at_fmt = fmt_date_time_opt(&job.run_at);
-        job.updated_at_fmt = fmt_date_time_opt(&job.updated_at);
+        let (run_at_date, run_at_time) = fmt_date_time_opt(&job.run_at);
+        let (updated_at_date, updated_at_time) = fmt_date_time_opt(&job.updated_at);
+        job.run_at_date = run_at_date;
+        job.run_at_time = run_at_time;
+        job.updated_at_date = updated_at_date;
+        job.updated_at_time = updated_at_time;
         job.job_data_pretty = match &job.job_data {
             Some(d) => serde_json::to_string_pretty(d).unwrap_or_else(|_| d.to_string()),
             None => String::new(),
