@@ -35,6 +35,8 @@ async fn main() {
         .route("/queues/browse", get(handlers::queue_browse))
         .route("/jobs/{id}", get(handlers::job_inspect))
         .route("/jobs/{id}/restart", post(handlers::restart_job))
+        .route("/jobs/{id}/cancel", post(handlers::cancel_job))
+        .route("/jobs/{id}/reschedule", post(handlers::reschedule_job))
         .route("/jobs/{id}/requeue", post(handlers::requeue_job))
         .route("/api/dashboard/poll", get(handlers::api_dashboard_poll))
         .route("/api/queues/poll", get(handlers::api_queue_poll))
@@ -181,13 +183,13 @@ mod tests {
         insert_test_job(&mut conn, "browse-q", "running", 1, 3, 0);
         insert_test_job(&mut conn, "browse-q", "pending", 0, 3, 0);
 
-        let all = crate::queries::get_jobs(&mut conn, "browse-q", None, 1, 50, "queue");
+        let all = crate::queries::get_jobs(&mut conn, "browse-q", None, 1, 50, "queue", "created_at", "desc");
         assert_eq!(all.len(), 3);
 
-        let pending = crate::queries::get_jobs(&mut conn, "browse-q", Some("pending"), 1, 50, "queue");
+        let pending = crate::queries::get_jobs(&mut conn, "browse-q", Some("pending"), 1, 50, "queue", "created_at", "desc");
         assert_eq!(pending.len(), 2);
 
-        let running = crate::queries::get_jobs(&mut conn, "browse-q", Some("running"), 1, 50, "queue");
+        let running = crate::queries::get_jobs(&mut conn, "browse-q", Some("running"), 1, 50, "queue", "created_at", "desc");
         assert_eq!(running.len(), 1);
     }
 
@@ -198,7 +200,7 @@ mod tests {
         insert_test_dlq_job(&mut conn, "dlq-tq-unique", "failed", 3, 3, 0);
         insert_test_dlq_job(&mut conn, "dlq-tq-unique", "failed", 3, 3, 0);
 
-        let jobs = crate::queries::get_jobs(&mut conn, "dlq-tq-unique", None, 1, 50, "dlq");
+        let jobs = crate::queries::get_jobs(&mut conn, "dlq-tq-unique", None, 1, 50, "dlq", "created_at", "desc");
         assert_eq!(jobs.len(), 2);
         assert_eq!(jobs[0].source, "dlq");
     }
@@ -209,7 +211,7 @@ mod tests {
 
         insert_test_archive_job(&mut conn, "archive-tq-unique", "completed", 3, 3, 1);
 
-        let jobs = crate::queries::get_jobs(&mut conn, "archive-tq-unique", None, 1, 50, "archive");
+        let jobs = crate::queries::get_jobs(&mut conn, "archive-tq-unique", None, 1, 50, "archive", "created_at", "desc");
         assert_eq!(jobs.len(), 1);
         assert_eq!(jobs[0].source, "archive");
     }
@@ -222,13 +224,13 @@ mod tests {
             insert_test_job(&mut conn, "page-q", "pending", 0, 3, i);
         }
 
-        let page1 = crate::queries::get_jobs(&mut conn, "page-q", None, 1, 2, "queue");
+        let page1 = crate::queries::get_jobs(&mut conn, "page-q", None, 1, 2, "queue", "created_at", "desc");
         assert_eq!(page1.len(), 2);
 
-        let page2 = crate::queries::get_jobs(&mut conn, "page-q", None, 2, 2, "queue");
+        let page2 = crate::queries::get_jobs(&mut conn, "page-q", None, 2, 2, "queue", "created_at", "desc");
         assert_eq!(page2.len(), 2);
 
-        let page3 = crate::queries::get_jobs(&mut conn, "page-q", None, 3, 2, "queue");
+        let page3 = crate::queries::get_jobs(&mut conn, "page-q", None, 3, 2, "queue", "created_at", "desc");
         assert_eq!(page3.len(), 1);
     }
 
@@ -238,7 +240,7 @@ mod tests {
 
         let before = existing_job_queue_count(&mut conn) as usize;
 
-        let jobs = crate::queries::get_jobs(&mut conn, "", None, 1, 50, "queue");
+        let jobs = crate::queries::get_jobs(&mut conn, "", None, 1, 50, "queue", "created_at", "desc");
         assert_eq!(jobs.len(), 50.min(before));
     }
 
@@ -487,5 +489,83 @@ mod tests {
         assert!(job.unique_key.is_none());
         assert!(job.job_data.is_none());
         assert!(job.created_at.and_utc().timestamp() > 0);
+    }
+
+    #[test]
+    fn test_cancel_job() {
+        let mut conn = establish_test_connection();
+
+        let id = insert_test_job(&mut conn, "cancel-q", "pending", 0, 3, 0);
+
+        crate::queries::cancel_job(&mut conn, id).expect("cancel should succeed");
+
+        let job: crate::models::Job = job_queue::table.find(id).first(&mut conn).unwrap();
+        assert_eq!(job.status, "cancelled");
+        assert!(job.updated_at.is_some());
+    }
+
+    #[test]
+    fn test_cancel_job_not_found() {
+        let mut conn = establish_test_connection();
+
+        let result = crate::queries::cancel_job(&mut conn, uuid::Uuid::new_v4());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reschedule_job() {
+        let mut conn = establish_test_connection();
+
+        let id = insert_test_job(&mut conn, "resched-q", "pending", 0, 3, 0);
+        let new_run_at = chrono::DateTime::from_timestamp(9999999999, 0).unwrap().naive_utc();
+
+        crate::queries::reschedule_job(&mut conn, id, new_run_at).expect("reschedule should succeed");
+
+        let job: crate::models::Job = job_queue::table.find(id).first(&mut conn).unwrap();
+        assert!(job.run_at.is_some());
+        assert_eq!(job.run_at.unwrap().and_utc().timestamp(), 9999999999);
+        assert_eq!(job.status, "pending");
+        assert!(job.updated_at.is_some());
+    }
+
+    #[test]
+    fn test_reschedule_job_not_found() {
+        let mut conn = establish_test_connection();
+
+        let result = crate::queries::reschedule_job(&mut conn, uuid::Uuid::new_v4(), chrono::Utc::now().naive_utc());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_jobs_sort_by_status() {
+        let mut conn = establish_test_connection();
+
+        insert_test_job(&mut conn, "sort-q", "running", 1, 3, 0);
+        insert_test_job(&mut conn, "sort-q", "pending", 0, 3, 0);
+        insert_test_job(&mut conn, "sort-q", "completed", 3, 3, 0);
+
+        let asc = crate::queries::get_jobs(&mut conn, "sort-q", None, 1, 50, "queue", "status", "asc");
+        assert_eq!(asc[0].status, "completed");
+        assert_eq!(asc[1].status, "pending");
+        assert_eq!(asc[2].status, "running");
+
+        let desc = crate::queries::get_jobs(&mut conn, "sort-q", None, 1, 50, "queue", "status", "desc");
+        assert_eq!(desc[0].status, "running");
+        assert_eq!(desc[1].status, "pending");
+        assert_eq!(desc[2].status, "completed");
+    }
+
+    #[test]
+    fn test_get_jobs_sort_by_attempt() {
+        let mut conn = establish_test_connection();
+
+        let _id1 = insert_test_job(&mut conn, "attempt-sort-q", "pending", 2, 3, 0);
+        let _id2 = insert_test_job(&mut conn, "attempt-sort-q", "pending", 0, 3, 0);
+        let _id3 = insert_test_job(&mut conn, "attempt-sort-q", "pending", 1, 3, 0);
+
+        let asc = crate::queries::get_jobs(&mut conn, "attempt-sort-q", None, 1, 50, "queue", "attempt", "asc");
+        assert_eq!(asc[0].attempt, 0);
+        assert_eq!(asc[1].attempt, 1);
+        assert_eq!(asc[2].attempt, 2);
     }
 }

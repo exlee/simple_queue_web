@@ -124,13 +124,15 @@ pub fn get_jobs(
     page: i64,
     per_page: i64,
     source: &str,
+    sort_by: &str,
+    sort_dir: &str,
 ) -> Vec<JobView> {
     let offset = (page - 1) * per_page;
 
+    let desc = sort_dir == "desc";
     let jobs: Vec<JobView> = match source {
         "dlq" => {
             let mut query = job_queue_dlq::table
-                .order_by(job_queue_dlq::created_at.desc())
                 .limit(per_page)
                 .offset(offset)
                 .into_boxed();
@@ -140,12 +142,19 @@ pub fn get_jobs(
             if let Some(status) = status_filter {
                 query = query.filter(job_queue_dlq::status.eq(status));
             }
+            query = match sort_by {
+                "status" => if desc { query.order_by(job_queue_dlq::status.desc()) } else { query.order_by(job_queue_dlq::status.asc()) },
+                "attempt" => if desc { query.order_by(job_queue_dlq::attempt.desc()) } else { query.order_by(job_queue_dlq::attempt.asc()) },
+                "reprocess_count" => if desc { query.order_by(job_queue_dlq::reprocess_count.desc()) } else { query.order_by(job_queue_dlq::reprocess_count.asc()) },
+                "run_at" => if desc { query.order_by(job_queue_dlq::run_at.desc().nulls_last()) } else { query.order_by(job_queue_dlq::run_at.asc().nulls_last()) },
+                "updated_at" => if desc { query.order_by(job_queue_dlq::updated_at.desc().nulls_last()) } else { query.order_by(job_queue_dlq::updated_at.asc().nulls_last()) },
+                _ => if desc { query.order_by(job_queue_dlq::created_at.desc()) } else { query.order_by(job_queue_dlq::created_at.asc()) },
+            };
             query.load::<DlqJob>(conn).unwrap_or_default()
                 .into_iter().map(Into::into).collect()
         }
         "archive" => {
             let mut query = job_queue_archive::table
-                .order_by(job_queue_archive::created_at.desc())
                 .limit(per_page)
                 .offset(offset)
                 .into_boxed();
@@ -155,12 +164,19 @@ pub fn get_jobs(
             if let Some(status) = status_filter {
                 query = query.filter(job_queue_archive::status.eq(status));
             }
+            query = match sort_by {
+                "status" => if desc { query.order_by(job_queue_archive::status.desc()) } else { query.order_by(job_queue_archive::status.asc()) },
+                "attempt" => if desc { query.order_by(job_queue_archive::attempt.desc()) } else { query.order_by(job_queue_archive::attempt.asc()) },
+                "reprocess_count" => if desc { query.order_by(job_queue_archive::reprocess_count.desc()) } else { query.order_by(job_queue_archive::reprocess_count.asc()) },
+                "run_at" => if desc { query.order_by(job_queue_archive::run_at.desc().nulls_last()) } else { query.order_by(job_queue_archive::run_at.asc().nulls_last()) },
+                "updated_at" => if desc { query.order_by(job_queue_archive::updated_at.desc().nulls_last()) } else { query.order_by(job_queue_archive::updated_at.asc().nulls_last()) },
+                _ => if desc { query.order_by(job_queue_archive::created_at.desc()) } else { query.order_by(job_queue_archive::created_at.asc()) },
+            };
             query.load::<ArchivedJob>(conn).unwrap_or_default()
                 .into_iter().map(Into::into).collect()
         }
         _ => {
             let mut query = job_queue::table
-                .order_by(job_queue::created_at.desc())
                 .limit(per_page)
                 .offset(offset)
                 .into_boxed();
@@ -170,6 +186,14 @@ pub fn get_jobs(
             if let Some(status) = status_filter {
                 query = query.filter(job_queue::status.eq(status));
             }
+            query = match sort_by {
+                "status" => if desc { query.order_by(job_queue::status.desc()) } else { query.order_by(job_queue::status.asc()) },
+                "attempt" => if desc { query.order_by(job_queue::attempt.desc()) } else { query.order_by(job_queue::attempt.asc()) },
+                "reprocess_count" => if desc { query.order_by(job_queue::reprocess_count.desc()) } else { query.order_by(job_queue::reprocess_count.asc()) },
+                "run_at" => if desc { query.order_by(job_queue::run_at.desc().nulls_last()) } else { query.order_by(job_queue::run_at.asc().nulls_last()) },
+                "updated_at" => if desc { query.order_by(job_queue::updated_at.desc().nulls_last()) } else { query.order_by(job_queue::updated_at.asc().nulls_last()) },
+                _ => if desc { query.order_by(job_queue::created_at.desc()) } else { query.order_by(job_queue::created_at.asc()) },
+            };
             query.load::<Job>(conn).unwrap_or_default()
                 .into_iter().map(Into::into).collect()
         }
@@ -315,6 +339,38 @@ pub fn requeue_from_archive(conn: &mut PgConnection, id: uuid::Uuid) -> Result<(
 
     if affected == 0 {
         return Err("Job not found in archive".into());
+    }
+    Ok(())
+}
+
+pub fn cancel_job(conn: &mut PgConnection, id: uuid::Uuid) -> Result<(), String> {
+    let now = chrono::Utc::now().naive_utc();
+    let affected = diesel::update(job_queue::table.filter(job_queue::id.eq(id)))
+        .set((
+            job_queue::status.eq("cancelled"),
+            job_queue::updated_at.eq(now),
+        ))
+        .execute(conn)
+        .map_err(|e| e.to_string())?;
+
+    if affected == 0 {
+        return Err("Job not found or not in queue".into());
+    }
+    Ok(())
+}
+
+pub fn reschedule_job(conn: &mut PgConnection, id: uuid::Uuid, run_at: chrono::NaiveDateTime) -> Result<(), String> {
+    let now = chrono::Utc::now().naive_utc();
+    let affected = diesel::update(job_queue::table.filter(job_queue::id.eq(id)))
+        .set((
+            job_queue::run_at.eq(run_at),
+            job_queue::updated_at.eq(now),
+        ))
+        .execute(conn)
+        .map_err(|e| e.to_string())?;
+
+    if affected == 0 {
+        return Err("Job not found or not in queue".into());
     }
     Ok(())
 }

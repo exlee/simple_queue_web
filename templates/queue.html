@@ -47,11 +47,12 @@
                     <thead>
                         <tr class="text-left text-gray-400 text-xs uppercase tracking-wider">
                             <th class="px-4 py-3">ID</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Attempts</th>
-                            <th class="px-4 py-3">Reprocess</th>
-                            <th class="px-4 py-3">Created At</th>
-                            <th class="px-4 py-3">Run At</th>
+                            <th class="px-4 py-3"><a href="{{ t.sort_link_status }}" class="hover:text-white">Status</a></th>
+                            <th class="px-4 py-3"><a href="{{ t.sort_link_attempt }}" class="hover:text-white">Attempts</a></th>
+                            <th class="px-4 py-3"><a href="{{ t.sort_link_reprocess_count }}" class="hover:text-white">Reprocess</a></th>
+                            <th class="px-4 py-3"><a href="{{ t.sort_link_created_at }}" class="hover:text-white">Created At</a></th>
+                            <th class="px-4 py-3"><a href="{{ t.sort_link_run_at }}" class="hover:text-white">Run At</a></th>
+                            <th class="px-4 py-3"><a href="{{ t.sort_link_updated_at }}" class="hover:text-white">Updated At</a></th>
                             <th class="px-4 py-3">Actions</th>
                         </tr>
                     </thead>
@@ -61,7 +62,7 @@
                             <td class="px-4 py-2">
                                 <a href="/jobs/{{ job.id }}?source={{ job.source }}"
                                    class="text-blue-400 hover:text-blue-300 font-mono text-xs">
-                                    {{ job.id }}
+                                    {% match job.created_at_fmt %}{% when Some(t) %}{{ t }}{% else %}-{% endmatch %}
                                 </a>
                             </td>
                             <td class="px-4 py-2">
@@ -70,16 +71,16 @@
                                     {% else if job.status == "running" %}bg-blue-900/50 text-blue-300
                                     {% else if job.status == "completed" %}bg-green-900/50 text-green-300
                                     {% else if job.status == "failed" %}bg-red-900/50 text-red-300
+                                    {% else if job.status == "cancelled" %}bg-gray-800 text-gray-500
                                     {% else %}bg-gray-800 text-gray-400{% endif %}">
                                     {{ job.status }}
                                 </span>
                             </td>
                             <td class="px-4 py-2 text-gray-300 font-mono">{{ job.attempt }}/{{ job.max_attempts }}</td>
                             <td class="px-4 py-2 text-gray-400 font-mono">{{ job.reprocess_count }}</td>
-                            <td class="px-4 py-2 text-gray-400 text-xs whitespace-nowrap">{{ job.created_at }}</td>
-                            <td class="px-4 py-2 text-xs whitespace-nowrap">
-                                {% match job.run_at %}{% when Some(t) %}<span class="text-gray-300">{{ t }}</span>{% else %}<span class="text-gray-600">-</span>{% endmatch %}
-                            </td>
+                            <td class="px-4 py-2 text-gray-400 text-xs whitespace-nowrap">{% match job.created_at_fmt %}{% when Some(t) %}{{ t }}{% else %}-{% endmatch %}</td>
+                            <td class="px-4 py-2 text-xs whitespace-nowrap">{{ job.run_at_fmt }}</td>
+                            <td class="px-4 py-2 text-xs whitespace-nowrap">{{ job.updated_at_fmt }}</td>
                             <td class="px-4 py-2">
                                 <div class="flex items-center gap-1">
                                     <a href="/jobs/{{ job.id }}?source={{ job.source }}"
@@ -88,6 +89,10 @@
                                     <form method="post" action="/jobs/{{ job.id }}/restart?queue={{ t.selected_queue }}&page={{ t.page }}&source=queue"
                                           class="inline" onsubmit="return confirm('Restart this job?')">
                                         <button type="submit" class="text-xs text-yellow-400 hover:text-yellow-300 px-2 py-1">Restart</button>
+                                    </form>
+                                    <form method="post" action="/jobs/{{ job.id }}/cancel?queue={{ t.selected_queue }}&page={{ t.page }}&source=queue"
+                                          class="inline" onsubmit="return confirm('Cancel this job?')">
+                                        <button type="submit" class="text-xs text-red-400 hover:text-red-300 px-2 py-1">Cancel</button>
                                     </form>
                                     {% endif %}
                                     {% if t.is_dlq_source || t.is_archive_source %}
@@ -109,14 +114,14 @@
                 </div>
                 <div class="flex items-center gap-2">
                     {% if t.page > 1 %}
-                    <a href="/queues/browse?queue={{ t.selected_queue }}&source={{ t.selected_source }}&page={{ t.page - 1 }}"
+                    <a href="/queues/browse?queue={{ t.selected_queue }}&source={{ t.selected_source }}&sort_by={{ t.sort_by }}&sort_dir={{ t.sort_dir }}&page={{ t.page - 1 }}"
                        class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition-colors">
                         Prev
                     </a>
                     {% endif %}
                     <span class="text-gray-500 text-xs">Page {{ t.page }} of {{ t.total_pages }}</span>
                     {% if t.page < t.total_pages %}
-                    <a href="/queues/browse?queue={{ t.selected_queue }}&source={{ t.selected_source }}&page={{ t.page + 1 }}"
+                    <a href="/queues/browse?queue={{ t.selected_queue }}&source={{ t.selected_source }}&sort_by={{ t.sort_by }}&sort_dir={{ t.sort_dir }}&page={{ t.page + 1 }}"
                        class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition-colors">
                         Next
                     </a>

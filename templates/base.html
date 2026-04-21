@@ -72,7 +72,7 @@
             if (path === '/dashboard') return '/api/dashboard/poll';
             if (path === '/queues/browse') {
                 let ep = '/api/queues/poll?';
-                const keep = ['queue', 'status', 'source', 'page'];
+                const keep = ['queue', 'status', 'source', 'page', 'sort_by', 'sort_dir'];
                 const filtered = new URLSearchParams();
                 for (const k of keep) {
                     if (params.has(k)) filtered.set(k, params.get(k));

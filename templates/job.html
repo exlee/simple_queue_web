@@ -25,6 +25,22 @@
                     Restart
                 </button>
             </form>
+            <form method="post" action="/jobs/{{ job.id }}/cancel?queue={{ job.queue }}&page=1&source=queue">
+                <button type="submit"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded transition-colors"
+                        onclick="return confirm('Cancel this job?')">
+                    Cancel
+                </button>
+            </form>
+            <form method="post" action="/jobs/{{ job.id }}/reschedule?queue={{ job.queue }}&page=1&source=queue" id="reschedule-form">
+                <input type="datetime-local" name="run_at" id="run-at-input"
+                       class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-1">
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors"
+                        onclick="return confirm('Reschedule this job?')">
+                    Reschedule
+                </button>
+            </form>
             {% endif %}
             {% if job.source == "dlq" || job.source == "archive" %}
             <form method="post" action="/jobs/{{ job.id }}/requeue?queue={{ job.queue }}&page=1&source={{ job.source }}">
@@ -59,6 +75,7 @@
                             {% else if job.status == "running" %}bg-blue-900/50 text-blue-300
                             {% else if job.status == "completed" %}bg-green-900/50 text-green-300
                             {% else if job.status == "failed" %}bg-red-900/50 text-red-300
+                            {% else if job.status == "cancelled" %}bg-gray-800 text-gray-500
                             {% else %}bg-gray-800 text-gray-400{% endif %}">
                             {{ job.status }}
                         </span>
@@ -91,19 +108,15 @@
                 </tr>
                 <tr class="border-b border-gray-800">
                     <td class="px-4 py-3 text-gray-400 align-top">Created At</td>
-                    <td class="px-4 py-3 text-white text-xs">{{ job.created_at }}</td>
+                    <td class="px-4 py-3 text-white text-xs">{% match job.created_at_fmt %}{% when Some(t) %}{{ t }}{% else %}-{% endmatch %}</td>
                 </tr>
                 <tr class="border-b border-gray-800">
                     <td class="px-4 py-3 text-gray-400 align-top">Run At</td>
-                    <td class="px-4 py-3 text-xs">
-                        {% match job.run_at %}{% when Some(t) %}<span class="text-white">{{ t }}</span>{% else %}<span class="text-gray-600">null</span>{% endmatch %}
-                    </td>
+                    <td class="px-4 py-3 text-xs">{{ job.run_at_fmt }}</td>
                 </tr>
                 <tr class="border-b border-gray-800">
                     <td class="px-4 py-3 text-gray-400 align-top">Updated At</td>
-                    <td class="px-4 py-3 text-xs">
-                        {% match job.updated_at %}{% when Some(t) %}<span class="text-white">{{ t }}</span>{% else %}<span class="text-gray-600">null</span>{% endmatch %}
-                    </td>
+                    <td class="px-4 py-3 text-xs">{{ job.updated_at_fmt }}</td>
                 </tr>
                 <tr>
                     <td class="px-4 py-3 text-gray-400 align-top">Job Data</td>
@@ -115,4 +128,15 @@
         </table>
     </div>
 </div>
+
+<script>
+(function() {
+    var ra = {% match job.run_at %}{% when Some(t) %}{{ t }}{% else %}null{% endmatch %};
+    if (ra !== null) {
+        var d = ra.substring(0, 16);
+        var inp = document.getElementById('run-at-input');
+        if (inp) inp.value = d.replace(' ', 'T');
+    }
+})();
+</script>
 {% endblock %}

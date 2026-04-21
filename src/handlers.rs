@@ -20,6 +20,8 @@ pub struct QueueBrowseParams {
     pub status: Option<String>,
     pub source: Option<String>,
     pub page: Option<i64>,
+    pub sort_by: Option<String>,
+    pub sort_dir: Option<String>,
 }
 
 fn with_conn<F, R>(pool: &PgPool, f: F) -> Result<R, String>
@@ -86,6 +88,14 @@ pub struct JobTableData {
     pub sel_running: bool,
     pub sel_completed: bool,
     pub sel_failed: bool,
+    pub sort_by: String,
+    pub sort_dir: String,
+    pub sort_link_created_at: String,
+    pub sort_link_status: String,
+    pub sort_link_attempt: String,
+    pub sort_link_reprocess_count: String,
+    pub sort_link_run_at: String,
+    pub sort_link_updated_at: String,
 }
 
 fn compute_dashboard_data(
@@ -146,6 +156,25 @@ fn compute_dashboard_data(
     }
 }
 
+fn fmt_millis(dt: &chrono::NaiveDateTime) -> String {
+    dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+}
+
+fn fmt_millis_opt(dt: &Option<chrono::NaiveDateTime>) -> String {
+    match dt {
+        Some(d) => fmt_millis(d),
+        None => "-".to_string(),
+    }
+}
+
+fn sort_link(current_by: &str, col: &str, current_dir: &str, queue: &str, source: &str, page: i64) -> String {
+    let dir = if current_by == col && current_dir == "asc" { "desc" } else { "asc" };
+    let arrow = if current_by == col {
+        if current_dir == "asc" { " \u{2191}" } else { " \u{2193}" }
+    } else { "" };
+    format!("/queues/browse?queue={}&source={}&page={}&sort_by={}&sort_dir={}{}", queue, source, page, col, dir, arrow)
+}
+
 fn build_job_table_data(
     jobs: Vec<crate::models::JobView>,
     selected_queue: &str,
@@ -153,11 +182,20 @@ fn build_job_table_data(
     selected_source: &str,
     page: i64,
     total: i64,
+    sort_by: &str,
+    sort_dir: &str,
 ) -> JobTableData {
     let total_pages = if total > 0 { (total + 50 - 1) / 50 } else { 1 };
     let show_from = if total > 0 { (page - 1) * 50 + 1 } else { 0 };
     let show_to = if page * 50 < total { page * 50 } else { total };
     let status_str = selected_status.unwrap_or("");
+
+    let mut jobs = jobs;
+    for job in &mut jobs {
+        job.created_at_fmt = Some(fmt_millis(&job.created_at));
+        job.run_at_fmt = fmt_millis_opt(&job.run_at);
+        job.updated_at_fmt = fmt_millis_opt(&job.updated_at);
+    }
 
     JobTableData {
         jobs,
@@ -175,6 +213,14 @@ fn build_job_table_data(
         sel_running: status_str == "running",
         sel_completed: status_str == "completed",
         sel_failed: status_str == "failed",
+        sort_by: sort_by.to_string(),
+        sort_dir: sort_dir.to_string(),
+        sort_link_created_at: sort_link(sort_by, "created_at", sort_dir, selected_queue, selected_source, page),
+        sort_link_status: sort_link(sort_by, "status", sort_dir, selected_queue, selected_source, page),
+        sort_link_attempt: sort_link(sort_by, "attempt", sort_dir, selected_queue, selected_source, page),
+        sort_link_reprocess_count: sort_link(sort_by, "reprocess_count", sort_dir, selected_queue, selected_source, page),
+        sort_link_run_at: sort_link(sort_by, "run_at", sort_dir, selected_queue, selected_source, page),
+        sort_link_updated_at: sort_link(sort_by, "updated_at", sort_dir, selected_queue, selected_source, page),
     }
 }
 
@@ -210,16 +256,18 @@ pub async fn queue_browse(
     let status = params.status.clone();
     let source = params.source.as_deref().unwrap_or("queue");
     let page = params.page.unwrap_or(1);
+    let sort_by = params.sort_by.as_deref().unwrap_or("created_at");
+    let sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
 
     let (queues, jobs, total) = with_conn(&state.pool, |conn| {
         let qs = queries::get_distinct_queues(conn);
-        let js = queries::get_jobs(conn, &queue_name, status.as_deref(), page, 50, source);
+        let js = queries::get_jobs(conn, &queue_name, status.as_deref(), page, 50, source, sort_by, sort_dir);
         let t = queries::count_jobs(conn, &queue_name, status.as_deref(), source);
         Ok::<_, String>((qs, js, t))
     })
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let job_table = build_job_table_data(jobs, &queue_name, status.as_deref(), source, page, total);
+    let job_table = build_job_table_data(jobs, &queue_name, status.as_deref(), source, page, total, sort_by, sort_dir);
 
     let html = templates::QueueTemplate {
         queues: queues.iter().map(|q| (q.as_str(), q == &queue_name)).collect::<Vec<_>>(),
@@ -260,6 +308,13 @@ pub async fn job_inspect(
 #[derive(Deserialize)]
 pub struct ActionParams {
     pub source: Option<String>,
+    pub queue: Option<String>,
+    pub page: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct RescheduleParams {
+    pub run_at: String,
     pub queue: Option<String>,
     pub page: Option<i64>,
 }
@@ -310,6 +365,44 @@ pub async fn requeue_job(
     Ok::<_, StatusCode>(Redirect::to(&redirect))
 }
 
+pub async fn cancel_job(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Query(params): Query<ActionParams>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let queue = params.queue.clone();
+    let page = params.page;
+
+    with_conn(&state.pool, |conn| queries::cancel_job(conn, id))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut redirect = format!("/queues/browse?queue={}&source=queue", queue.unwrap_or_default());
+    if let Some(p) = page {
+        redirect.push_str(&format!("&page={}", p));
+    }
+    Ok::<_, StatusCode>(Redirect::to(&redirect))
+}
+
+pub async fn reschedule_job(
+    State(state): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Query(params): Query<RescheduleParams>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let run_at = chrono::NaiveDateTime::parse_from_str(&params.run_at, "%Y-%m-%dT%H:%M")
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let queue = params.queue.clone();
+    let page = params.page;
+
+    with_conn(&state.pool, |conn| queries::reschedule_job(conn, id, run_at))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut redirect = format!("/queues/browse?queue={}&source=queue", queue.unwrap_or_default());
+    if let Some(p) = page {
+        redirect.push_str(&format!("&page={}", p));
+    }
+    Ok::<_, StatusCode>(Redirect::to(&redirect))
+}
+
 pub async fn api_dashboard_poll(
     State(state): State<AppState>,
 ) -> Result<Html<String>, StatusCode> {
@@ -349,15 +442,17 @@ pub async fn api_queue_poll(
     let status = params.status.clone();
     let source = params.source.as_deref().unwrap_or("queue");
     let page = params.page.unwrap_or(1);
+    let sort_by = params.sort_by.as_deref().unwrap_or("created_at");
+    let sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
 
     let (jobs, total) = with_conn(&state.pool, |conn| {
-        let js = queries::get_jobs(conn, &queue_name, status.as_deref(), page, 50, source);
+        let js = queries::get_jobs(conn, &queue_name, status.as_deref(), page, 50, source, sort_by, sort_dir);
         let t = queries::count_jobs(conn, &queue_name, status.as_deref(), source);
         Ok::<_, String>((js, t))
     })
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let job_table = build_job_table_data(jobs, &queue_name, status.as_deref(), source, page, total);
+    let job_table = build_job_table_data(jobs, &queue_name, status.as_deref(), source, page, total, sort_by, sort_dir);
 
     let jobs_html = templates::partials::JobTableTemplate { t: &job_table }
         .render()
