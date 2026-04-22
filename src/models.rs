@@ -18,6 +18,7 @@ pub struct Job {
     pub created_at: NaiveDateTime,
     pub run_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub completed_at: Option<NaiveDateTime>,
     pub attempt: i32,
     pub max_attempts: i32,
     pub reprocess_count: i32,
@@ -35,6 +36,7 @@ pub struct DlqJob {
     pub created_at: NaiveDateTime,
     pub run_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub completed_at: Option<NaiveDateTime>,
     pub attempt: i32,
     pub max_attempts: i32,
     pub reprocess_count: i32,
@@ -52,6 +54,7 @@ pub struct ArchivedJob {
     pub created_at: NaiveDateTime,
     pub run_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub completed_at: Option<NaiveDateTime>,
     pub attempt: i32,
     pub max_attempts: i32,
     pub reprocess_count: i32,
@@ -86,6 +89,7 @@ pub struct JobView {
     pub created_at: NaiveDateTime,
     pub run_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub completed_at: Option<NaiveDateTime>,
     pub attempt: i32,
     pub max_attempts: i32,
     pub reprocess_count: i32,
@@ -103,6 +107,10 @@ pub struct JobView {
     #[serde(skip)]
     pub updated_at_time: String,
     #[serde(skip)]
+    pub completed_at_fmt: Option<String>,
+    #[serde(skip)]
+    pub runtime: String,
+    #[serde(skip)]
     pub job_data_pretty: String,
 }
 
@@ -118,6 +126,7 @@ impl From<Job> for JobView {
             created_at: j.created_at,
             run_at: j.run_at,
             updated_at: j.updated_at,
+            completed_at: j.completed_at,
             attempt: j.attempt,
             max_attempts: j.max_attempts,
             reprocess_count: j.reprocess_count,
@@ -128,6 +137,8 @@ impl From<Job> for JobView {
             run_at_time: String::new(),
             updated_at_date: String::new(),
             updated_at_time: String::new(),
+            completed_at_fmt: None,
+            runtime: String::new(),
             job_data_pretty: String::new(),
         }
     }
@@ -145,6 +156,7 @@ impl From<DlqJob> for JobView {
             created_at: j.created_at,
             run_at: j.run_at,
             updated_at: j.updated_at,
+            completed_at: j.completed_at,
             attempt: j.attempt,
             max_attempts: j.max_attempts,
             reprocess_count: j.reprocess_count,
@@ -155,6 +167,8 @@ impl From<DlqJob> for JobView {
             run_at_time: String::new(),
             updated_at_date: String::new(),
             updated_at_time: String::new(),
+            completed_at_fmt: None,
+            runtime: String::new(),
             job_data_pretty: String::new(),
         }
     }
@@ -172,6 +186,7 @@ impl From<ArchivedJob> for JobView {
             created_at: j.created_at,
             run_at: j.run_at,
             updated_at: j.updated_at,
+            completed_at: j.completed_at,
             attempt: j.attempt,
             max_attempts: j.max_attempts,
             reprocess_count: j.reprocess_count,
@@ -182,6 +197,8 @@ impl From<ArchivedJob> for JobView {
             run_at_time: String::new(),
             updated_at_date: String::new(),
             updated_at_time: String::new(),
+            completed_at_fmt: None,
+            runtime: String::new(),
             job_data_pretty: String::new(),
         }
     }

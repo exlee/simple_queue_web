@@ -113,8 +113,18 @@
                 <tr class="border-b border-gray-800">
                     <td class="px-4 py-3 text-gray-400 align-top">Run At</td>
                     <td class="px-4 py-3 text-xs"><div class="leading-none">{{ job.run_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.run_at_time }}</div></td>
-
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Updated At</td>
                     <td class="px-4 py-3 text-xs"><div class="leading-none">{{ job.updated_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.updated_at_time }}</div></td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Completed At</td>
+                    <td class="px-4 py-3 text-white text-xs">{% match job.completed_at_fmt %}{% when Some(t) %}{{ t }}{% else %}<span class="text-gray-600">-</span>{% endmatch %}</td>
+                </tr>
+                <tr class="border-b border-gray-800">
+                    <td class="px-4 py-3 text-gray-400 align-top">Runtime</td>
+                    <td class="px-4 py-3 text-white font-mono text-xs">{% if !job.runtime.is_empty() %}{{ job.runtime }}{% else %}<span class="text-gray-600">-</span>{% endif %}</td>
                 </tr>
                 <tr>
                     <td class="px-4 py-3 text-gray-400 align-top">Job Data</td>

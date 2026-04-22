@@ -178,6 +178,24 @@ fn fmt_date_time_opt(dt: &Option<chrono::NaiveDateTime>) -> (String, String) {
     }
 }
 
+fn fmt_runtime(created_at: &chrono::NaiveDateTime, completed_at: &chrono::NaiveDateTime) -> String {
+    let duration = *completed_at - *created_at;
+    let total_ms = duration.num_milliseconds();
+    if total_ms < 0 {
+        return "-".into();
+    }
+    if total_ms >= 60_000 {
+        let secs = duration.num_seconds();
+        let mins = secs / 60;
+        let rem_secs = secs % 60;
+        format!("{}m {}s", mins, rem_secs)
+    } else if total_ms >= 1_000 {
+        format!("{:.2}s", total_ms as f64 / 1000.0)
+    } else {
+        format!("{}ms", total_ms)
+    }
+}
+
 fn build_job_table_data(
     jobs: Vec<crate::models::JobView>,
     selected_queue: &str,
@@ -203,6 +221,11 @@ fn build_job_table_data(
         job.run_at_time = run_at_time;
         job.updated_at_date = updated_at_date;
         job.updated_at_time = updated_at_time;
+        job.completed_at_fmt = job.completed_at.as_ref().map(fmt_millis);
+        job.runtime = match job.completed_at {
+            Some(ca) => fmt_runtime(&job.created_at, &ca),
+            None => String::new(),
+        };
         job.job_data_pretty = match &job.job_data {
             Some(d) => serde_json::to_string_pretty(d).unwrap_or_else(|_| d.to_string()),
             None => String::new(),
