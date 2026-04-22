@@ -196,6 +196,26 @@ fn fmt_runtime(created_at: &chrono::NaiveDateTime, completed_at: &chrono::NaiveD
     }
 }
 
+fn format_job_view(job: &mut crate::models::JobView) {
+    job.short_id = job.id.to_string().split('-').next().unwrap_or(&job.id.to_string()).to_string();
+    job.created_at_fmt = Some(fmt_millis(&job.created_at));
+    let (run_at_date, run_at_time) = fmt_date_time_opt(&job.run_at);
+    let (updated_at_date, updated_at_time) = fmt_date_time_opt(&job.updated_at);
+    job.run_at_date = run_at_date;
+    job.run_at_time = run_at_time;
+    job.updated_at_date = updated_at_date;
+    job.updated_at_time = updated_at_time;
+    job.completed_at_fmt = job.completed_at.as_ref().map(fmt_millis);
+    job.runtime = match job.completed_at {
+        Some(ca) => fmt_runtime(&job.created_at, &ca),
+        None => String::new(),
+    };
+    job.job_data_pretty = match &job.job_data {
+        Some(d) => serde_json::to_string_pretty(d).unwrap_or_else(|_| d.to_string()),
+        None => String::new(),
+    };
+}
+
 fn build_job_table_data(
     jobs: Vec<crate::models::JobView>,
     selected_queue: &str,
@@ -213,23 +233,7 @@ fn build_job_table_data(
 
     let mut jobs = jobs;
     for job in &mut jobs {
-        job.short_id = job.id.to_string().split('-').next().unwrap_or(&job.id.to_string()).to_string();
-        job.created_at_fmt = Some(fmt_millis(&job.created_at));
-        let (run_at_date, run_at_time) = fmt_date_time_opt(&job.run_at);
-        let (updated_at_date, updated_at_time) = fmt_date_time_opt(&job.updated_at);
-        job.run_at_date = run_at_date;
-        job.run_at_time = run_at_time;
-        job.updated_at_date = updated_at_date;
-        job.updated_at_time = updated_at_time;
-        job.completed_at_fmt = job.completed_at.as_ref().map(fmt_millis);
-        job.runtime = match job.completed_at {
-            Some(ca) => fmt_runtime(&job.created_at, &ca),
-            None => String::new(),
-        };
-        job.job_data_pretty = match &job.job_data {
-            Some(d) => serde_json::to_string_pretty(d).unwrap_or_else(|_| d.to_string()),
-            None => String::new(),
-        };
+        format_job_view(job);
     }
 
     JobTableData {
@@ -331,7 +335,8 @@ pub async fn job_inspect(
     })
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let job = job.ok_or(StatusCode::NOT_FOUND)?;
+    let mut job = job.ok_or(StatusCode::NOT_FOUND)?;
+    format_job_view(&mut job);
 
     let html = templates::JobTemplate { job: &job }
         .render()

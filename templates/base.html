@@ -64,10 +64,7 @@
                 const html = lines.slice(1).join('\n');
                 const el = document.querySelector(selector);
                 if (el) {
-                    const temp = document.createElement('template');
-                    temp.innerHTML = html.trim();
-                    const newEl = temp.content.firstChild;
-                    if (newEl) el.replaceWith(newEl);
+                    el.innerHTML = html.trim();
                 }
             }
         }
