@@ -1,5 +1,5 @@
-use diesel::prelude::*;
 use diesel::PgConnection;
+use diesel::prelude::*;
 
 pub fn establish_test_connection() -> PgConnection {
     let database_url = std::env::var("DATABASE_URL")
@@ -82,5 +82,8 @@ pub fn insert_test_archive_job(
 }
 
 pub fn existing_job_queue_count(conn: &mut PgConnection) -> i64 {
-    crate::schema::job_queue::table.count().get_result(conn).unwrap_or(0)
+    crate::schema::job_queue::table
+        .count()
+        .get_result(conn)
+        .unwrap_or(0)
 }

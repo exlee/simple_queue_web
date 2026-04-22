@@ -1,8 +1,8 @@
-use diesel::prelude::*;
 use diesel::PgConnection;
+use diesel::prelude::*;
 
-use crate::models::{Job, DlqJob, ArchivedJob, JobView, QueueStatusCount, TableStats};
-use crate::schema::{job_queue, job_queue_dlq, job_queue_archive};
+use crate::models::{ArchivedJob, DlqJob, Job, JobView, QueueStatusCount, TableStats};
+use crate::schema::{job_queue, job_queue_archive, job_queue_dlq};
 
 pub fn set_statement_timeout(conn: &mut PgConnection) {
     diesel::sql_query("SET statement_timeout = '5s'")
@@ -13,36 +13,60 @@ pub fn set_statement_timeout(conn: &mut PgConnection) {
 pub fn get_queue_status_counts(conn: &mut PgConnection) -> Vec<QueueStatusCount> {
     job_queue::table
         .group_by((job_queue::queue, job_queue::status))
-        .select((job_queue::queue, job_queue::status, diesel::dsl::count_star()))
+        .select((
+            job_queue::queue,
+            job_queue::status,
+            diesel::dsl::count_star(),
+        ))
         .order_by((job_queue::queue, job_queue::status))
         .load(conn)
         .unwrap_or_default()
         .into_iter()
-        .map(|(queue, status, count)| QueueStatusCount { queue, status, count })
+        .map(|(queue, status, count)| QueueStatusCount {
+            queue,
+            status,
+            count,
+        })
         .collect()
 }
 
 pub fn get_dlq_counts(conn: &mut PgConnection) -> Vec<QueueStatusCount> {
     job_queue_dlq::table
         .group_by((job_queue_dlq::queue, job_queue_dlq::status))
-        .select((job_queue_dlq::queue, job_queue_dlq::status, diesel::dsl::count_star()))
+        .select((
+            job_queue_dlq::queue,
+            job_queue_dlq::status,
+            diesel::dsl::count_star(),
+        ))
         .order_by((job_queue_dlq::queue, job_queue_dlq::status))
         .load(conn)
         .unwrap_or_default()
         .into_iter()
-        .map(|(queue, status, count)| QueueStatusCount { queue, status, count })
+        .map(|(queue, status, count)| QueueStatusCount {
+            queue,
+            status,
+            count,
+        })
         .collect()
 }
 
 pub fn get_archive_counts(conn: &mut PgConnection) -> Vec<QueueStatusCount> {
     job_queue_archive::table
         .group_by((job_queue_archive::queue, job_queue_archive::status))
-        .select((job_queue_archive::queue, job_queue_archive::status, diesel::dsl::count_star()))
+        .select((
+            job_queue_archive::queue,
+            job_queue_archive::status,
+            diesel::dsl::count_star(),
+        ))
         .order_by((job_queue_archive::queue, job_queue_archive::status))
         .load(conn)
         .unwrap_or_default()
         .into_iter()
-        .map(|(queue, status, count)| QueueStatusCount { queue, status, count })
+        .map(|(queue, status, count)| QueueStatusCount {
+            queue,
+            status,
+            count,
+        })
         .collect()
 }
 
@@ -117,6 +141,7 @@ pub fn get_distinct_queues(conn: &mut PgConnection) -> Vec<String> {
     all
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_jobs(
     conn: &mut PgConnection,
     queue_name: &str,
@@ -143,15 +168,55 @@ pub fn get_jobs(
                 query = query.filter(job_queue_dlq::status.eq(status));
             }
             query = match sort_by {
-                "status" => if desc { query.order_by(job_queue_dlq::status.desc()) } else { query.order_by(job_queue_dlq::status.asc()) },
-                "attempt" => if desc { query.order_by(job_queue_dlq::attempt.desc()) } else { query.order_by(job_queue_dlq::attempt.asc()) },
-                "reprocess_count" => if desc { query.order_by(job_queue_dlq::reprocess_count.desc()) } else { query.order_by(job_queue_dlq::reprocess_count.asc()) },
-                "run_at" => if desc { query.order_by(job_queue_dlq::run_at.desc().nulls_last()) } else { query.order_by(job_queue_dlq::run_at.asc().nulls_last()) },
-                "updated_at" => if desc { query.order_by(job_queue_dlq::updated_at.desc().nulls_last()) } else { query.order_by(job_queue_dlq::updated_at.asc().nulls_last()) },
-                _ => if desc { query.order_by(job_queue_dlq::created_at.desc()) } else { query.order_by(job_queue_dlq::created_at.asc()) },
+                "status" => {
+                    if desc {
+                        query.order_by(job_queue_dlq::status.desc())
+                    } else {
+                        query.order_by(job_queue_dlq::status.asc())
+                    }
+                }
+                "attempt" => {
+                    if desc {
+                        query.order_by(job_queue_dlq::attempt.desc())
+                    } else {
+                        query.order_by(job_queue_dlq::attempt.asc())
+                    }
+                }
+                "reprocess_count" => {
+                    if desc {
+                        query.order_by(job_queue_dlq::reprocess_count.desc())
+                    } else {
+                        query.order_by(job_queue_dlq::reprocess_count.asc())
+                    }
+                }
+                "run_at" => {
+                    if desc {
+                        query.order_by(job_queue_dlq::run_at.desc().nulls_last())
+                    } else {
+                        query.order_by(job_queue_dlq::run_at.asc().nulls_last())
+                    }
+                }
+                "updated_at" => {
+                    if desc {
+                        query.order_by(job_queue_dlq::updated_at.desc().nulls_last())
+                    } else {
+                        query.order_by(job_queue_dlq::updated_at.asc().nulls_last())
+                    }
+                }
+                _ => {
+                    if desc {
+                        query.order_by(job_queue_dlq::created_at.desc())
+                    } else {
+                        query.order_by(job_queue_dlq::created_at.asc())
+                    }
+                }
             };
-            query.load::<DlqJob>(conn).unwrap_or_default()
-                .into_iter().map(Into::into).collect()
+            query
+                .load::<DlqJob>(conn)
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect()
         }
         "archive" => {
             let mut query = job_queue_archive::table
@@ -165,21 +230,58 @@ pub fn get_jobs(
                 query = query.filter(job_queue_archive::status.eq(status));
             }
             query = match sort_by {
-                "status" => if desc { query.order_by(job_queue_archive::status.desc()) } else { query.order_by(job_queue_archive::status.asc()) },
-                "attempt" => if desc { query.order_by(job_queue_archive::attempt.desc()) } else { query.order_by(job_queue_archive::attempt.asc()) },
-                "reprocess_count" => if desc { query.order_by(job_queue_archive::reprocess_count.desc()) } else { query.order_by(job_queue_archive::reprocess_count.asc()) },
-                "run_at" => if desc { query.order_by(job_queue_archive::run_at.desc().nulls_last()) } else { query.order_by(job_queue_archive::run_at.asc().nulls_last()) },
-                "updated_at" => if desc { query.order_by(job_queue_archive::updated_at.desc().nulls_last()) } else { query.order_by(job_queue_archive::updated_at.asc().nulls_last()) },
-                _ => if desc { query.order_by(job_queue_archive::created_at.desc()) } else { query.order_by(job_queue_archive::created_at.asc()) },
+                "status" => {
+                    if desc {
+                        query.order_by(job_queue_archive::status.desc())
+                    } else {
+                        query.order_by(job_queue_archive::status.asc())
+                    }
+                }
+                "attempt" => {
+                    if desc {
+                        query.order_by(job_queue_archive::attempt.desc())
+                    } else {
+                        query.order_by(job_queue_archive::attempt.asc())
+                    }
+                }
+                "reprocess_count" => {
+                    if desc {
+                        query.order_by(job_queue_archive::reprocess_count.desc())
+                    } else {
+                        query.order_by(job_queue_archive::reprocess_count.asc())
+                    }
+                }
+                "run_at" => {
+                    if desc {
+                        query.order_by(job_queue_archive::run_at.desc().nulls_last())
+                    } else {
+                        query.order_by(job_queue_archive::run_at.asc().nulls_last())
+                    }
+                }
+                "updated_at" => {
+                    if desc {
+                        query.order_by(job_queue_archive::updated_at.desc().nulls_last())
+                    } else {
+                        query.order_by(job_queue_archive::updated_at.asc().nulls_last())
+                    }
+                }
+                _ => {
+                    if desc {
+                        query.order_by(job_queue_archive::created_at.desc())
+                    } else {
+                        query.order_by(job_queue_archive::created_at.asc())
+                    }
+                }
             };
-            query.load::<ArchivedJob>(conn).unwrap_or_default()
-                .into_iter().map(Into::into).collect()
+            query
+                .load::<ArchivedJob>(conn)
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect()
         }
         _ => {
-            let mut query = job_queue::table
-                .limit(per_page)
-                .offset(offset)
-                .into_boxed();
+            let mut query = job_queue::table.limit(per_page).offset(offset).into_boxed();
             if !queue_name.is_empty() {
                 query = query.filter(job_queue::queue.eq(queue_name));
             }
@@ -187,15 +289,55 @@ pub fn get_jobs(
                 query = query.filter(job_queue::status.eq(status));
             }
             query = match sort_by {
-                "status" => if desc { query.order_by(job_queue::status.desc()) } else { query.order_by(job_queue::status.asc()) },
-                "attempt" => if desc { query.order_by(job_queue::attempt.desc()) } else { query.order_by(job_queue::attempt.asc()) },
-                "reprocess_count" => if desc { query.order_by(job_queue::reprocess_count.desc()) } else { query.order_by(job_queue::reprocess_count.asc()) },
-                "run_at" => if desc { query.order_by(job_queue::run_at.desc().nulls_last()) } else { query.order_by(job_queue::run_at.asc().nulls_last()) },
-                "updated_at" => if desc { query.order_by(job_queue::updated_at.desc().nulls_last()) } else { query.order_by(job_queue::updated_at.asc().nulls_last()) },
-                _ => if desc { query.order_by(job_queue::created_at.desc()) } else { query.order_by(job_queue::created_at.asc()) },
+                "status" => {
+                    if desc {
+                        query.order_by(job_queue::status.desc())
+                    } else {
+                        query.order_by(job_queue::status.asc())
+                    }
+                }
+                "attempt" => {
+                    if desc {
+                        query.order_by(job_queue::attempt.desc())
+                    } else {
+                        query.order_by(job_queue::attempt.asc())
+                    }
+                }
+                "reprocess_count" => {
+                    if desc {
+                        query.order_by(job_queue::reprocess_count.desc())
+                    } else {
+                        query.order_by(job_queue::reprocess_count.asc())
+                    }
+                }
+                "run_at" => {
+                    if desc {
+                        query.order_by(job_queue::run_at.desc().nulls_last())
+                    } else {
+                        query.order_by(job_queue::run_at.asc().nulls_last())
+                    }
+                }
+                "updated_at" => {
+                    if desc {
+                        query.order_by(job_queue::updated_at.desc().nulls_last())
+                    } else {
+                        query.order_by(job_queue::updated_at.asc().nulls_last())
+                    }
+                }
+                _ => {
+                    if desc {
+                        query.order_by(job_queue::created_at.desc())
+                    } else {
+                        query.order_by(job_queue::created_at.asc())
+                    }
+                }
             };
-            query.load::<Job>(conn).unwrap_or_default()
-                .into_iter().map(Into::into).collect()
+            query
+                .load::<Job>(conn)
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect()
         }
     };
 
@@ -265,13 +407,13 @@ pub fn get_job(conn: &mut PgConnection, id: uuid::Uuid, source: &str) -> Option<
 }
 
 pub fn find_job_anywhere(conn: &mut PgConnection, id: uuid::Uuid) -> Option<JobView> {
-    if let Some(job) = job_queue::table.find(id).first::<Job>(conn).ok() {
+    if let Ok(job) = job_queue::table.find(id).first::<Job>(conn) {
         return Some(job.into());
     }
-    if let Some(job) = job_queue_dlq::table.find(id).first::<DlqJob>(conn).ok() {
+    if let Ok(job) = job_queue_dlq::table.find(id).first::<DlqJob>(conn) {
         return Some(job.into());
     }
-    if let Some(job) = job_queue_archive::table.find(id).first::<ArchivedJob>(conn).ok() {
+    if let Ok(job) = job_queue_archive::table.find(id).first::<ArchivedJob>(conn) {
         return Some(job.into());
     }
     None
@@ -359,13 +501,14 @@ pub fn cancel_job(conn: &mut PgConnection, id: uuid::Uuid) -> Result<(), String>
     Ok(())
 }
 
-pub fn reschedule_job(conn: &mut PgConnection, id: uuid::Uuid, run_at: chrono::NaiveDateTime) -> Result<(), String> {
+pub fn reschedule_job(
+    conn: &mut PgConnection,
+    id: uuid::Uuid,
+    run_at: chrono::NaiveDateTime,
+) -> Result<(), String> {
     let now = chrono::Utc::now().naive_utc();
     let affected = diesel::update(job_queue::table.filter(job_queue::id.eq(id)))
-        .set((
-            job_queue::run_at.eq(run_at),
-            job_queue::updated_at.eq(now),
-        ))
+        .set((job_queue::run_at.eq(run_at), job_queue::updated_at.eq(now)))
         .execute(conn)
         .map_err(|e| e.to_string())?;
 

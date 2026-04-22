@@ -948,7 +948,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple_queue_web"
+name = "simple-queue-web"
 version = "0.1.0"
 dependencies = [
  "askama",

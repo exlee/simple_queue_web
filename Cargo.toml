@@ -1,7 +1,15 @@
 [package]
-name = "simple_queue_web"
+name = "simple-queue-web"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+description = "Web UI for inspecting and managing simple-queue persistent job queues backed by PostgreSQL"
+keywords = ["queue", "postgres", "web", "dashboard", "simple-queue"]
+categories = ["web-programming", "development-tools"]
+repository = "https://github.com/exlee/simple_queue_web"
+rust-version = "1.85.0"
+readme = "README.md"
+include = ["src/**/*", "templates/**/*", "README.md", "LICENSE"]
 
 [dependencies]
 axum = "0.8"
@@ -16,3 +24,5 @@ uuid = { version = "1", features = ["serde", "v4"] }
 askama = "0.12"
 tower-http = { version = "0.6", features = ["trace"] }
 dotenvy = "0.15"
+
+

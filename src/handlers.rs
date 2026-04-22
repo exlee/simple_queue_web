@@ -104,24 +104,57 @@ fn compute_dashboard_data(
     archive_counts: &[crate::models::QueueStatusCount],
     stats: &crate::models::TableStats,
 ) -> DashboardData {
-    let total_pending: i64 = queue_counts.iter().filter(|c| c.status == "pending").map(|c| c.count).sum();
-    let total_running: i64 = queue_counts.iter().filter(|c| c.status == "running").map(|c| c.count).sum();
-    let total_completed: i64 = queue_counts.iter().filter(|c| c.status == "completed").map(|c| c.count).sum();
-    let total_failed: i64 = queue_counts.iter().filter(|c| c.status == "failed").map(|c| c.count).sum();
+    let total_pending: i64 = queue_counts
+        .iter()
+        .filter(|c| c.status == "pending")
+        .map(|c| c.count)
+        .sum();
+    let total_running: i64 = queue_counts
+        .iter()
+        .filter(|c| c.status == "running")
+        .map(|c| c.count)
+        .sum();
+    let total_completed: i64 = queue_counts
+        .iter()
+        .filter(|c| c.status == "completed")
+        .map(|c| c.count)
+        .sum();
+    let total_failed: i64 = queue_counts
+        .iter()
+        .filter(|c| c.status == "failed")
+        .map(|c| c.count)
+        .sum();
     let total_dlq: i64 = dlq_counts.iter().map(|c| c.count).sum();
     let total_archive: i64 = archive_counts.iter().map(|c| c.count).sum();
 
-    let queue_names: std::collections::HashSet<&str> = queue_counts.iter().map(|c| c.queue.as_str()).collect();
+    let queue_names: std::collections::HashSet<&str> =
+        queue_counts.iter().map(|c| c.queue.as_str()).collect();
     let mut sorted_queues: Vec<&str> = queue_names.into_iter().collect();
     sorted_queues.sort();
 
     let queue_breakdown: Vec<QueueBreakdown> = sorted_queues
         .into_iter()
         .map(|q| {
-            let pending: i64 = queue_counts.iter().filter(|c| c.queue == q && c.status == "pending").map(|c| c.count).sum();
-            let running: i64 = queue_counts.iter().filter(|c| c.queue == q && c.status == "running").map(|c| c.count).sum();
-            let completed: i64 = queue_counts.iter().filter(|c| c.queue == q && c.status == "completed").map(|c| c.count).sum();
-            let failed: i64 = queue_counts.iter().filter(|c| c.queue == q && c.status == "failed").map(|c| c.count).sum();
+            let pending: i64 = queue_counts
+                .iter()
+                .filter(|c| c.queue == q && c.status == "pending")
+                .map(|c| c.count)
+                .sum();
+            let running: i64 = queue_counts
+                .iter()
+                .filter(|c| c.queue == q && c.status == "running")
+                .map(|c| c.count)
+                .sum();
+            let completed: i64 = queue_counts
+                .iter()
+                .filter(|c| c.queue == q && c.status == "completed")
+                .map(|c| c.count)
+                .sum();
+            let failed: i64 = queue_counts
+                .iter()
+                .filter(|c| c.queue == q && c.status == "failed")
+                .map(|c| c.count)
+                .sum();
             QueueBreakdown {
                 queue: q.to_string(),
                 pending,
@@ -141,15 +174,24 @@ fn compute_dashboard_data(
         total_dlq,
         total_archive,
         queue_breakdown,
-        dlq_counts: dlq_counts.iter().map(|c| QueueStatusCount {
-            queue: c.queue.clone(),
-            status: c.status.clone(),
-            count: c.count,
-        }).collect(),
+        dlq_counts: dlq_counts
+            .iter()
+            .map(|c| QueueStatusCount {
+                queue: c.queue.clone(),
+                status: c.status.clone(),
+                count: c.count,
+            })
+            .collect(),
         dead_tuples: stats.dead_tuples,
         live_tuples: stats.live_tuples,
-        last_vacuum: stats.last_vacuum.map(|t| t.to_string()).unwrap_or_else(|| "Never".into()),
-        last_autovacuum: stats.last_autovacuum.map(|t| t.to_string()).unwrap_or_else(|| "Never".into()),
+        last_vacuum: stats
+            .last_vacuum
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "Never".into()),
+        last_autovacuum: stats
+            .last_autovacuum
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "Never".into()),
         total_inserts: stats.total_inserts,
         total_updates: stats.total_updates,
         total_deletes: stats.total_deletes,
@@ -160,12 +202,32 @@ fn fmt_millis(dt: &chrono::NaiveDateTime) -> String {
     dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
 }
 
-fn sort_link(current_by: &str, col: &str, current_dir: &str, queue: &str, source: &str, page: i64) -> String {
-    let dir = if current_by == col && current_dir == "asc" { "desc" } else { "asc" };
+fn sort_link(
+    current_by: &str,
+    col: &str,
+    current_dir: &str,
+    queue: &str,
+    source: &str,
+    page: i64,
+) -> String {
+    let dir = if current_by == col && current_dir == "asc" {
+        "desc"
+    } else {
+        "asc"
+    };
     let arrow = if current_by == col {
-        if current_dir == "asc" { " \u{2191}" } else { " \u{2193}" }
-    } else { "" };
-    format!("/queues/browse?queue={}&source={}&page={}&sort_by={}&sort_dir={}{}", queue, source, page, col, dir, arrow)
+        if current_dir == "asc" {
+            " \u{2191}"
+        } else {
+            " \u{2193}"
+        }
+    } else {
+        ""
+    };
+    format!(
+        "/queues/browse?queue={}&source={}&page={}&sort_by={}&sort_dir={}{}",
+        queue, source, page, col, dir, arrow
+    )
 }
 
 fn fmt_date_time_opt(dt: &Option<chrono::NaiveDateTime>) -> (String, String) {
@@ -197,7 +259,13 @@ fn fmt_runtime(created_at: &chrono::NaiveDateTime, completed_at: &chrono::NaiveD
 }
 
 fn format_job_view(job: &mut crate::models::JobView) {
-    job.short_id = job.id.to_string().split('-').next().unwrap_or(&job.id.to_string()).to_string();
+    job.short_id = job
+        .id
+        .to_string()
+        .split('-')
+        .next()
+        .unwrap_or(&job.id.to_string())
+        .to_string();
     job.created_at_fmt = Some(fmt_millis(&job.created_at));
     let (created_at_date, created_at_time) = fmt_date_time_opt(&Some(job.created_at));
     job.created_at_date = created_at_date;
@@ -219,6 +287,7 @@ fn format_job_view(job: &mut crate::models::JobView) {
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_job_table_data(
     jobs: Vec<crate::models::JobView>,
     selected_queue: &str,
@@ -257,12 +326,54 @@ fn build_job_table_data(
         sel_failed: status_str == "failed",
         sort_by: sort_by.to_string(),
         sort_dir: sort_dir.to_string(),
-        sort_link_created_at: sort_link(sort_by, "created_at", sort_dir, selected_queue, selected_source, page),
-        sort_link_status: sort_link(sort_by, "status", sort_dir, selected_queue, selected_source, page),
-        sort_link_attempt: sort_link(sort_by, "attempt", sort_dir, selected_queue, selected_source, page),
-        sort_link_reprocess_count: sort_link(sort_by, "reprocess_count", sort_dir, selected_queue, selected_source, page),
-        sort_link_run_at: sort_link(sort_by, "run_at", sort_dir, selected_queue, selected_source, page),
-        sort_link_updated_at: sort_link(sort_by, "updated_at", sort_dir, selected_queue, selected_source, page),
+        sort_link_created_at: sort_link(
+            sort_by,
+            "created_at",
+            sort_dir,
+            selected_queue,
+            selected_source,
+            page,
+        ),
+        sort_link_status: sort_link(
+            sort_by,
+            "status",
+            sort_dir,
+            selected_queue,
+            selected_source,
+            page,
+        ),
+        sort_link_attempt: sort_link(
+            sort_by,
+            "attempt",
+            sort_dir,
+            selected_queue,
+            selected_source,
+            page,
+        ),
+        sort_link_reprocess_count: sort_link(
+            sort_by,
+            "reprocess_count",
+            sort_dir,
+            selected_queue,
+            selected_source,
+            page,
+        ),
+        sort_link_run_at: sort_link(
+            sort_by,
+            "run_at",
+            sort_dir,
+            selected_queue,
+            selected_source,
+            page,
+        ),
+        sort_link_updated_at: sort_link(
+            sort_by,
+            "updated_at",
+            sort_dir,
+            selected_queue,
+            selected_source,
+            page,
+        ),
     }
 }
 
@@ -271,15 +382,14 @@ pub async fn index() -> impl IntoResponse {
 }
 
 pub async fn dashboard(State(state): State<AppState>) -> Result<Html<String>, StatusCode> {
-    let (queue_counts, dlq_counts, archive_counts, stats) =
-        with_conn(&state.pool, |conn| {
-            let qc = queries::get_queue_status_counts(conn);
-            let dc = queries::get_dlq_counts(conn);
-            let ac = queries::get_archive_counts(conn);
-            let st = queries::get_table_stats(conn);
-            Ok::<_, String>((qc, dc, ac, st))
-        })
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let (queue_counts, dlq_counts, archive_counts, stats) = with_conn(&state.pool, |conn| {
+        let qc = queries::get_queue_status_counts(conn);
+        let dc = queries::get_dlq_counts(conn);
+        let ac = queries::get_archive_counts(conn);
+        let st = queries::get_table_stats(conn);
+        Ok::<_, String>((qc, dc, ac, st))
+    })
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let data = compute_dashboard_data(&queue_counts, &dlq_counts, &archive_counts, &stats);
 
@@ -303,16 +413,37 @@ pub async fn queue_browse(
 
     let (queues, jobs, total) = with_conn(&state.pool, |conn| {
         let qs = queries::get_distinct_queues(conn);
-        let js = queries::get_jobs(conn, &queue_name, status.as_deref(), page, 50, source, sort_by, sort_dir);
+        let js = queries::get_jobs(
+            conn,
+            &queue_name,
+            status.as_deref(),
+            page,
+            50,
+            source,
+            sort_by,
+            sort_dir,
+        );
         let t = queries::count_jobs(conn, &queue_name, status.as_deref(), source);
         Ok::<_, String>((qs, js, t))
     })
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let job_table = build_job_table_data(jobs, &queue_name, status.as_deref(), source, page, total, sort_by, sort_dir);
+    let job_table = build_job_table_data(
+        jobs,
+        &queue_name,
+        status.as_deref(),
+        source,
+        page,
+        total,
+        sort_by,
+        sort_dir,
+    );
 
     let html = templates::QueueTemplate {
-        queues: queues.iter().map(|q| (q.as_str(), q == &queue_name)).collect::<Vec<_>>(),
+        queues: queues
+            .iter()
+            .map(|q| (q.as_str(), q == &queue_name))
+            .collect::<Vec<_>>(),
         t: &job_table,
     }
     .render()
@@ -326,7 +457,10 @@ pub async fn job_inspect(
     Path(id): Path<uuid::Uuid>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Html<String>, StatusCode> {
-    let source = params.get("source").cloned().unwrap_or_else(|| "queue".into());
+    let source = params
+        .get("source")
+        .cloned()
+        .unwrap_or_else(|| "queue".into());
 
     let job = with_conn(&state.pool, |conn| {
         let job = if source == "auto" {
@@ -373,7 +507,10 @@ pub async fn restart_job(
     with_conn(&state.pool, |conn| queries::restart_job(conn, id))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let mut redirect = format!("/queues/browse?queue={}&source=queue", queue.unwrap_or_default());
+    let mut redirect = format!(
+        "/queues/browse?queue={}&source=queue",
+        queue.unwrap_or_default()
+    );
     if let Some(p) = page {
         redirect.push_str(&format!("&page={}", p));
     }
@@ -419,7 +556,10 @@ pub async fn cancel_job(
     with_conn(&state.pool, |conn| queries::cancel_job(conn, id))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let mut redirect = format!("/queues/browse?queue={}&source=queue", queue.unwrap_or_default());
+    let mut redirect = format!(
+        "/queues/browse?queue={}&source=queue",
+        queue.unwrap_or_default()
+    );
     if let Some(p) = page {
         redirect.push_str(&format!("&page={}", p));
     }
@@ -436,28 +576,30 @@ pub async fn reschedule_job(
     let queue = params.queue.clone();
     let page = params.page;
 
-    with_conn(&state.pool, |conn| queries::reschedule_job(conn, id, run_at))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    with_conn(&state.pool, |conn| {
+        queries::reschedule_job(conn, id, run_at)
+    })
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let mut redirect = format!("/queues/browse?queue={}&source=queue", queue.unwrap_or_default());
+    let mut redirect = format!(
+        "/queues/browse?queue={}&source=queue",
+        queue.unwrap_or_default()
+    );
     if let Some(p) = page {
         redirect.push_str(&format!("&page={}", p));
     }
     Ok::<_, StatusCode>(Redirect::to(&redirect))
 }
 
-pub async fn api_dashboard_poll(
-    State(state): State<AppState>,
-) -> Result<Html<String>, StatusCode> {
-    let (queue_counts, dlq_counts, archive_counts, stats) =
-        with_conn(&state.pool, |conn| {
-            let qc = queries::get_queue_status_counts(conn);
-            let dc = queries::get_dlq_counts(conn);
-            let ac = queries::get_archive_counts(conn);
-            let st = queries::get_table_stats(conn);
-            Ok::<_, String>((qc, dc, ac, st))
-        })
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+pub async fn api_dashboard_poll(State(state): State<AppState>) -> Result<Html<String>, StatusCode> {
+    let (queue_counts, dlq_counts, archive_counts, stats) = with_conn(&state.pool, |conn| {
+        let qc = queries::get_queue_status_counts(conn);
+        let dc = queries::get_dlq_counts(conn);
+        let ac = queries::get_archive_counts(conn);
+        let st = queries::get_table_stats(conn);
+        Ok::<_, String>((qc, dc, ac, st))
+    })
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let data = compute_dashboard_data(&queue_counts, &dlq_counts, &archive_counts, &stats);
 
@@ -489,13 +631,31 @@ pub async fn api_queue_poll(
     let sort_dir = params.sort_dir.as_deref().unwrap_or("desc");
 
     let (jobs, total) = with_conn(&state.pool, |conn| {
-        let js = queries::get_jobs(conn, &queue_name, status.as_deref(), page, 50, source, sort_by, sort_dir);
+        let js = queries::get_jobs(
+            conn,
+            &queue_name,
+            status.as_deref(),
+            page,
+            50,
+            source,
+            sort_by,
+            sort_dir,
+        );
         let t = queries::count_jobs(conn, &queue_name, status.as_deref(), source);
         Ok::<_, String>((js, t))
     })
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let job_table = build_job_table_data(jobs, &queue_name, status.as_deref(), source, page, total, sort_by, sort_dir);
+    let job_table = build_job_table_data(
+        jobs,
+        &queue_name,
+        status.as_deref(),
+        source,
+        page,
+        total,
+        sort_by,
+        sort_dir,
+    );
 
     let jobs_html = templates::partials::JobTableTemplate { t: &job_table }
         .render()
@@ -507,12 +667,12 @@ pub async fn api_queue_poll(
 }
 
 mod templates {
-    use askama::Template;
     use super::{DashboardData, JobTableData};
+    use askama::Template;
 
     pub mod partials {
-        use askama::Template;
         use super::{DashboardData, JobTableData};
+        use askama::Template;
 
         #[derive(Template)]
         #[template(path = "partials/counters.html")]

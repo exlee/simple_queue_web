@@ -7,8 +7,8 @@ mod schema;
 mod test_helpers;
 
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 use handlers::AppState;
 use tower_http::trace::TraceLayer;
@@ -24,10 +24,9 @@ async fn main() {
         .init();
 
     let args: Vec<String> = std::env::args().collect();
-    let database_url = args
-        .get(1)
-        .cloned()
-        .unwrap_or_else(|| std::env::var("DATABASE_URL").expect("DATABASE_URL must be set or passed as first argument"));
+    let database_url = args.get(1).cloned().unwrap_or_else(|| {
+        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set or passed as first argument")
+    });
 
     let pool = db::establish_pool(&database_url);
     let state = AppState { pool };
@@ -56,9 +55,9 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use diesel::prelude::*;
+    use crate::schema::{job_queue, job_queue_archive, job_queue_dlq};
     use crate::test_helpers::*;
-    use crate::schema::{job_queue, job_queue_dlq, job_queue_archive};
+    use diesel::prelude::*;
 
     #[test]
     fn test_get_queue_status_counts() {
@@ -186,13 +185,40 @@ mod tests {
         insert_test_job(&mut conn, "browse-q", "running", 1, 3, 0);
         insert_test_job(&mut conn, "browse-q", "pending", 0, 3, 0);
 
-        let all = crate::queries::get_jobs(&mut conn, "browse-q", None, 1, 50, "queue", "created_at", "desc");
+        let all = crate::queries::get_jobs(
+            &mut conn,
+            "browse-q",
+            None,
+            1,
+            50,
+            "queue",
+            "created_at",
+            "desc",
+        );
         assert_eq!(all.len(), 3);
 
-        let pending = crate::queries::get_jobs(&mut conn, "browse-q", Some("pending"), 1, 50, "queue", "created_at", "desc");
+        let pending = crate::queries::get_jobs(
+            &mut conn,
+            "browse-q",
+            Some("pending"),
+            1,
+            50,
+            "queue",
+            "created_at",
+            "desc",
+        );
         assert_eq!(pending.len(), 2);
 
-        let running = crate::queries::get_jobs(&mut conn, "browse-q", Some("running"), 1, 50, "queue", "created_at", "desc");
+        let running = crate::queries::get_jobs(
+            &mut conn,
+            "browse-q",
+            Some("running"),
+            1,
+            50,
+            "queue",
+            "created_at",
+            "desc",
+        );
         assert_eq!(running.len(), 1);
     }
 
@@ -203,7 +229,16 @@ mod tests {
         insert_test_dlq_job(&mut conn, "dlq-tq-unique", "failed", 3, 3, 0);
         insert_test_dlq_job(&mut conn, "dlq-tq-unique", "failed", 3, 3, 0);
 
-        let jobs = crate::queries::get_jobs(&mut conn, "dlq-tq-unique", None, 1, 50, "dlq", "created_at", "desc");
+        let jobs = crate::queries::get_jobs(
+            &mut conn,
+            "dlq-tq-unique",
+            None,
+            1,
+            50,
+            "dlq",
+            "created_at",
+            "desc",
+        );
         assert_eq!(jobs.len(), 2);
         assert_eq!(jobs[0].source, "dlq");
     }
@@ -214,7 +249,16 @@ mod tests {
 
         insert_test_archive_job(&mut conn, "archive-tq-unique", "completed", 3, 3, 1);
 
-        let jobs = crate::queries::get_jobs(&mut conn, "archive-tq-unique", None, 1, 50, "archive", "created_at", "desc");
+        let jobs = crate::queries::get_jobs(
+            &mut conn,
+            "archive-tq-unique",
+            None,
+            1,
+            50,
+            "archive",
+            "created_at",
+            "desc",
+        );
         assert_eq!(jobs.len(), 1);
         assert_eq!(jobs[0].source, "archive");
     }
@@ -227,13 +271,40 @@ mod tests {
             insert_test_job(&mut conn, "page-q", "pending", 0, 3, i);
         }
 
-        let page1 = crate::queries::get_jobs(&mut conn, "page-q", None, 1, 2, "queue", "created_at", "desc");
+        let page1 = crate::queries::get_jobs(
+            &mut conn,
+            "page-q",
+            None,
+            1,
+            2,
+            "queue",
+            "created_at",
+            "desc",
+        );
         assert_eq!(page1.len(), 2);
 
-        let page2 = crate::queries::get_jobs(&mut conn, "page-q", None, 2, 2, "queue", "created_at", "desc");
+        let page2 = crate::queries::get_jobs(
+            &mut conn,
+            "page-q",
+            None,
+            2,
+            2,
+            "queue",
+            "created_at",
+            "desc",
+        );
         assert_eq!(page2.len(), 2);
 
-        let page3 = crate::queries::get_jobs(&mut conn, "page-q", None, 3, 2, "queue", "created_at", "desc");
+        let page3 = crate::queries::get_jobs(
+            &mut conn,
+            "page-q",
+            None,
+            3,
+            2,
+            "queue",
+            "created_at",
+            "desc",
+        );
         assert_eq!(page3.len(), 1);
     }
 
@@ -243,7 +314,8 @@ mod tests {
 
         let before = existing_job_queue_count(&mut conn) as usize;
 
-        let jobs = crate::queries::get_jobs(&mut conn, "", None, 1, 50, "queue", "created_at", "desc");
+        let jobs =
+            crate::queries::get_jobs(&mut conn, "", None, 1, 50, "queue", "created_at", "desc");
         assert_eq!(jobs.len(), 50.min(before));
     }
 
@@ -260,10 +332,12 @@ mod tests {
         let all_count_q = crate::queries::count_jobs(&mut conn, "count-tq-unique", None, "queue");
         assert_eq!(all_count_q, baseline + 3);
 
-        let pending = crate::queries::count_jobs(&mut conn, "count-tq-unique", Some("pending"), "queue");
+        let pending =
+            crate::queries::count_jobs(&mut conn, "count-tq-unique", Some("pending"), "queue");
         assert_eq!(pending, 2);
 
-        let no_match = crate::queries::count_jobs(&mut conn, "count-tq-unique", Some("completed"), "queue");
+        let no_match =
+            crate::queries::count_jobs(&mut conn, "count-tq-unique", Some("completed"), "queue");
         assert_eq!(no_match, 0);
     }
 
@@ -449,7 +523,8 @@ mod tests {
 
         let id = insert_test_archive_job(&mut conn, "requeue-arch", "discarded", 1, 3, 5);
 
-        crate::queries::requeue_from_archive(&mut conn, id).expect("requeue from archive should succeed");
+        crate::queries::requeue_from_archive(&mut conn, id)
+            .expect("requeue from archive should succeed");
 
         let archive_exists: bool = diesel::select(diesel::dsl::exists(
             job_queue_archive::table.filter(job_queue_archive::id.eq(id)),
@@ -520,9 +595,12 @@ mod tests {
         let mut conn = establish_test_connection();
 
         let id = insert_test_job(&mut conn, "resched-q", "pending", 0, 3, 0);
-        let new_run_at = chrono::DateTime::from_timestamp(9999999999, 0).unwrap().naive_utc();
+        let new_run_at = chrono::DateTime::from_timestamp(9999999999, 0)
+            .unwrap()
+            .naive_utc();
 
-        crate::queries::reschedule_job(&mut conn, id, new_run_at).expect("reschedule should succeed");
+        crate::queries::reschedule_job(&mut conn, id, new_run_at)
+            .expect("reschedule should succeed");
 
         let job: crate::models::Job = job_queue::table.find(id).first(&mut conn).unwrap();
         assert!(job.run_at.is_some());
@@ -535,7 +613,11 @@ mod tests {
     fn test_reschedule_job_not_found() {
         let mut conn = establish_test_connection();
 
-        let result = crate::queries::reschedule_job(&mut conn, uuid::Uuid::new_v4(), chrono::Utc::now().naive_utc());
+        let result = crate::queries::reschedule_job(
+            &mut conn,
+            uuid::Uuid::new_v4(),
+            chrono::Utc::now().naive_utc(),
+        );
         assert!(result.is_err());
     }
 
@@ -547,12 +629,14 @@ mod tests {
         insert_test_job(&mut conn, "sort-q", "pending", 0, 3, 0);
         insert_test_job(&mut conn, "sort-q", "completed", 3, 3, 0);
 
-        let asc = crate::queries::get_jobs(&mut conn, "sort-q", None, 1, 50, "queue", "status", "asc");
+        let asc =
+            crate::queries::get_jobs(&mut conn, "sort-q", None, 1, 50, "queue", "status", "asc");
         assert_eq!(asc[0].status, "completed");
         assert_eq!(asc[1].status, "pending");
         assert_eq!(asc[2].status, "running");
 
-        let desc = crate::queries::get_jobs(&mut conn, "sort-q", None, 1, 50, "queue", "status", "desc");
+        let desc =
+            crate::queries::get_jobs(&mut conn, "sort-q", None, 1, 50, "queue", "status", "desc");
         assert_eq!(desc[0].status, "running");
         assert_eq!(desc[1].status, "pending");
         assert_eq!(desc[2].status, "completed");
@@ -566,7 +650,16 @@ mod tests {
         let _id2 = insert_test_job(&mut conn, "attempt-sort-q", "pending", 0, 3, 0);
         let _id3 = insert_test_job(&mut conn, "attempt-sort-q", "pending", 1, 3, 0);
 
-        let asc = crate::queries::get_jobs(&mut conn, "attempt-sort-q", None, 1, 50, "queue", "attempt", "asc");
+        let asc = crate::queries::get_jobs(
+            &mut conn,
+            "attempt-sort-q",
+            None,
+            1,
+            50,
+            "queue",
+            "attempt",
+            "asc",
+        );
         assert_eq!(asc[0].attempt, 0);
         assert_eq!(asc[1].attempt, 1);
         assert_eq!(asc[2].attempt, 2);
