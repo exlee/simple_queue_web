@@ -78,7 +78,7 @@
                             </td>
                             <td class="px-4 py-2 text-gray-300 font-mono text-xs">{{ job.attempt }}/{{ job.max_attempts }}</td>
                             <td class="px-4 py-2 text-gray-400 font-mono text-xs">{{ job.reprocess_count }}</td>
-                            <td class="px-4 py-2 text-gray-400 text-xs whitespace-nowrap">{% match job.created_at_fmt %}{% when Some(t) %}{{ t }}{% else %}-{% endmatch %}</td>
+                            <td class="px-4 py-2 text-xs"><div class="leading-none">{{ job.created_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.created_at_time }}</div></td>
                             <td class="px-4 py-2 text-xs"><div class="leading-none">{{ job.run_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.run_at_time }}</div></td>
                             <td class="px-4 py-2 text-xs"><div class="leading-none">{{ job.updated_at_date }}</div><div class="text-[10px] text-gray-500 leading-none mt-0.5">{{ job.updated_at_time }}</div></td>
                             <td class="px-4 py-2">

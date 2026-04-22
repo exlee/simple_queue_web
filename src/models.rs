@@ -99,6 +99,10 @@ pub struct JobView {
     #[serde(skip)]
     pub created_at_fmt: Option<String>,
     #[serde(skip)]
+    pub created_at_date: String,
+    #[serde(skip)]
+    pub created_at_time: String,
+    #[serde(skip)]
     pub run_at_date: String,
     #[serde(skip)]
     pub run_at_time: String,
@@ -133,6 +137,8 @@ impl From<Job> for JobView {
             source: "queue".into(),
             short_id: j.id.to_string()[..8].to_string(),
             created_at_fmt: None,
+            created_at_date: String::new(),
+            created_at_time: String::new(),
             run_at_date: String::new(),
             run_at_time: String::new(),
             updated_at_date: String::new(),
@@ -163,6 +169,8 @@ impl From<DlqJob> for JobView {
             source: "dlq".into(),
             short_id: j.id.to_string()[..8].to_string(),
             created_at_fmt: None,
+            created_at_date: String::new(),
+            created_at_time: String::new(),
             run_at_date: String::new(),
             run_at_time: String::new(),
             updated_at_date: String::new(),
@@ -193,6 +201,8 @@ impl From<ArchivedJob> for JobView {
             source: "archive".into(),
             short_id: j.id.to_string()[..8].to_string(),
             created_at_fmt: None,
+            created_at_date: String::new(),
+            created_at_time: String::new(),
             run_at_date: String::new(),
             run_at_time: String::new(),
             updated_at_date: String::new(),

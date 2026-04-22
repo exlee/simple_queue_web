@@ -199,6 +199,9 @@ fn fmt_runtime(created_at: &chrono::NaiveDateTime, completed_at: &chrono::NaiveD
 fn format_job_view(job: &mut crate::models::JobView) {
     job.short_id = job.id.to_string().split('-').next().unwrap_or(&job.id.to_string()).to_string();
     job.created_at_fmt = Some(fmt_millis(&job.created_at));
+    let (created_at_date, created_at_time) = fmt_date_time_opt(&Some(job.created_at));
+    job.created_at_date = created_at_date;
+    job.created_at_time = created_at_time;
     let (run_at_date, run_at_time) = fmt_date_time_opt(&job.run_at);
     let (updated_at_date, updated_at_time) = fmt_date_time_opt(&job.updated_at);
     job.run_at_date = run_at_date;
