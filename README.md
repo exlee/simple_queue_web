@@ -33,6 +33,20 @@ Alternatively, set the `DATABASE_URL` environment variable.
 
 The server binds to `0.0.0.0:3001` by default.
 
+## Screenshots
+
+### Dashboard
+
+![Dashboard](assets/dashboard.png)
+
+### Job List
+
+![Job List](assets/job-list.png)
+
+### Job Details
+
+![Job Details](assets/job-details.png)
+
 ## Install
 
 ```bash

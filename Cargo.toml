@@ -9,7 +9,7 @@ categories = ["web-programming", "development-tools"]
 repository = "https://github.com/exlee/simple_queue_web"
 rust-version = "1.85.0"
 readme = "README.md"
-include = ["src/**/*", "templates/**/*", "README.md", "LICENSE"]
+include = ["src/**/*", "templates/**/*", "assets/**/*", "README.md", "LICENSE"]
 
 [dependencies]
 axum = "0.8"
